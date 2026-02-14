@@ -175,3 +175,14 @@ export async function deleteDocument(filename: string) {
     const result = await collection.deleteMany({ 'metadata.filename': filename });
     return result.deletedCount;
 }
+
+/**
+ * Delete all vectors from the collection
+ */
+export async function clearAllVectors() {
+    const db = await getDb();
+    const collection = db.collection('vectors');
+
+    const result = await collection.deleteMany({});
+    return result.deletedCount;
+}
