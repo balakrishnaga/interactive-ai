@@ -1,0 +1,11 @@
+services:
+  chatbot:
+    build: .
+    container_name: chatbot-llm
+    restart: always
+    ports:
+      - "80:3000" # Use "80:3000" to access directly via IP without specifying port
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production

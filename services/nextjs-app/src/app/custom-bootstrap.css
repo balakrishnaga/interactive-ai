@@ -1,0 +1,7 @@
+/* Custom overrides - now using Cosmic Glass design system in globals.css */
+/* Keeping this file minimal as Bootstrap is loaded but we override most styles */
+
+/* Reset Bootstrap's default body styles */
+body {
+    background-color: transparent !important;
+}
