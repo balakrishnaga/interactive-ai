@@ -4,3 +4,7 @@ sentence-transformers
 torch
 pytest
 httpx
+langchain
+langchain-community
+pypdf
+python-multipart

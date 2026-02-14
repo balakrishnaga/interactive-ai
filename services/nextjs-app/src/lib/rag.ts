@@ -39,78 +39,42 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 }
 
 /**
- * Extract text from PDF and split into chunks
+ * Process PDF remotely using the embedding service (LangChain based)
  */
-export async function processPdf(buffer: Buffer, filename: string): Promise<DocumentChunk[]> {
-    // PDF parsing libraries (like pdfjs-dist used by pdf-parse) sometimes expect
-    // browser-only globals like DOMMatrix. We polyfill it here for the Node environment.
-    if (typeof (global as any).DOMMatrix === 'undefined') {
-        (global as any).DOMMatrix = class DOMMatrix {
-            m11 = 1; m12 = 0; m13 = 0; m14 = 0;
-            m21 = 0; m22 = 1; m23 = 0; m24 = 0;
-            m31 = 0; m32 = 0; m33 = 1; m34 = 0;
-            m41 = 0; m42 = 0; m43 = 0; m44 = 1;
-            constructor() { }
-        };
-    }
+export async function processPdfRemote(file: File): Promise<DocumentChunk[]> {
+    const serviceUrl = process.env.EMBEDDING_SERVICE_URL || "http://localhost:8000";
 
-    // Dynamically require to avoid build-time errors with browser polyfills
-    // Version 2.4.5 of pdf-parse uses a class constructor
-    // Using eval('require') bypasses Turbopack's static analysis for the worker loader
-    // and correctly identifies the main entry point which contains the PDFParse class.
-    const pdfParse = eval('require')('pdf-parse');
-    const { PDFParse } = pdfParse;
-    const parser = new PDFParse({ data: buffer });
+    const formData = new FormData();
+    formData.append('file', file);
 
-    // Get text page by page if possible
-    // Note: Standard pdf-parse handles multiple pages in the 'text' property
-    // but we want to split them to get the correct page index.
-    // Some versions of pdf-parse don't easily expose pages, so we'll check common patterns.
+    try {
+        const response = await fetch(`${serviceUrl}/process-pdf`, {
+            method: 'POST',
+            body: formData,
+        });
 
-    const data = await parser.getText();
-    // Default fallback if we can't get page-by-page: split by common page break character \f
-    const pages = data.text.split('\f');
-
-    const chunks: DocumentChunk[] = [];
-    const chunkSize = 1000;
-    const overlap = 200;
-
-    pages.forEach((pageText: string, pageIdx: number) => {
-        const cleanPageText = pageText.trim();
-        if (cleanPageText.length < 10) return;
-
-        for (let i = 0; i < cleanPageText.length; i += chunkSize - overlap) {
-            const chunkText = cleanPageText.slice(i, i + chunkSize);
-            if (chunkText.trim().length < 50) continue;
-
-            chunks.push({
-                text: chunkText,
-                metadata: {
-                    filename,
-                    pageIndex: pageIdx + 1, // 1-based index
-                    chunkIndex: chunks.length
-                }
-            });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
         }
-    });
 
-    return chunks;
+        const data = await response.json();
+        return data.chunks as DocumentChunk[];
+    } catch (error: any) {
+        console.error("Remote Processing Error:", error);
+        throw new Error(`Failed to process PDF remotely: ${error.message}`);
+    }
 }
 
 /**
- * Store chunks in MongoDB vector collection
+ * Store chunks in MongoDB vector collection (chunks already have embeddings)
  */
 export async function storeChunks(chunks: DocumentChunk[]) {
     const db = await getDb();
     const collection = db.collection('vectors');
 
-    // Batch generate embeddings
-    const texts = chunks.map(c => c.text);
-    const embeddings = await generateEmbeddings(texts);
-
-    const docs = chunks.map((chunk, i) => ({
+    const docs = chunks.map((chunk) => ({
         ...chunk,
-        embedding: embeddings[i],
         createdAt: new Date()
     }));
 
