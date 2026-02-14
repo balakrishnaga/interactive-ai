@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { processPdf, storeChunks } from '@/lib/rag';
 
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '10mb',
+        },
+    },
+};
+
 export async function POST(req: Request) {
     try {
         const formData = await req.formData();
