@@ -389,50 +389,68 @@ export default function ChatBox() {
                     {mode === 'insight' && (
                         <aside className="insight-sidebar">
                             <div className="sidebar-header">
-                                <FileText size={18} />
-                                Knowledge Base
+                                <div className="sidebar-header-icon">✦</div>
+                                <div className="sidebar-header-text">
+                                    <span className="sidebar-title">Knowledge Base</span>
+                                    <span className="sidebar-subtitle">
+                                        {documents.length > 0
+                                            ? `${documents.length} document${documents.length !== 1 ? 's' : ''} indexed`
+                                            : 'No documents indexed'}
+                                    </span>
+                                </div>
                             </div>
 
-                            {documents.length > 0 ? (
-                                <div className="document-list">
-                                    {documents.map((doc) => (
-                                        <div key={doc} className="document-item">
-                                            <div className="document-info">
-                                                <FileText size={14} className="text-secondary" />
-                                                <span title={doc}>{doc}</span>
+                            <div className="sidebar-content">
+                                {documents.length > 0 ? (
+                                    <div className="document-list">
+                                        {documents.map((doc) => (
+                                            <div key={doc} className="document-item">
+                                                <div className="document-info">
+                                                    <div className="document-icon-badge">
+                                                        <FileText size={14} />
+                                                    </div>
+                                                    <span title={doc}>{doc}</span>
+                                                </div>
+                                                <button
+                                                    className="delete-doc-btn"
+                                                    onClick={() => handleDeleteDocument(doc)}
+                                                    disabled={isDeleting === doc}
+                                                    title="Remove from DB"
+                                                >
+                                                    {isDeleting === doc ? (
+                                                        <Loader2 size={14} className="animate-spin" />
+                                                    ) : (
+                                                        <Trash2 size={14} />
+                                                    )}
+                                                </button>
                                             </div>
-                                            <button
-                                                className="delete-doc-btn"
-                                                onClick={() => handleDeleteDocument(doc)}
-                                                disabled={isDeleting === doc}
-                                                title="Remove from DB"
-                                            >
-                                                {isDeleting === doc ? (
-                                                    <Loader2 size={14} className="animate-spin" />
-                                                ) : (
-                                                    <Trash2 size={14} />
-                                                )}
-                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="sidebar-empty">
+                                        <div className="sidebar-empty-icon">
+                                            <Paperclip size={28} />
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="sidebar-empty">
-                                    <Paperclip size={24} />
-                                    <span>No documents uploaded yet.</span>
-                                </div>
-                            )}
+                                        <span className="sidebar-empty-title">No documents yet</span>
+                                        <span className="sidebar-empty-desc">Upload PDFs to build your knowledge base and enable contextual search.</span>
+                                    </div>
+                                )}
+                            </div>
 
-                            {hasUploadedFile && (
+                            <div className="sidebar-footer">
                                 <button
-                                    className="nav-link"
-                                    style={{ marginTop: 'auto', width: '100%', justifyContent: 'center' }}
+                                    className="sidebar-add-btn"
                                     onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
                                 >
-                                    <Plus size={16} />
-                                    Add Document
+                                    {isUploading ? (
+                                        <Loader2 size={16} className="animate-spin" />
+                                    ) : (
+                                        <Plus size={16} />
+                                    )}
+                                    {isUploading ? 'Uploading...' : 'Add Document'}
                                 </button>
-                            )}
+                            </div>
                         </aside>
                     )}
                 </div>
