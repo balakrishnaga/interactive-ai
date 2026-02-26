@@ -1,9 +1,16 @@
 from fastapi import APIRouter, UploadFile, File
-from app.schemas.text_input import TextInput, BatchInput
+from app.schemas.text_input import TextInput, BatchInput, ChatInput
 from app.services.embedding import embedding_service
 from app.services.document_processor import document_processor
+from app.services.llm_service import llm_service
 
 router = APIRouter()
+
+@router.post("/chat")
+async def chat(input: ChatInput):
+    messages = [m.dict() for m in input.messages]
+    response = await llm_service.chat(messages)
+    return {"response": response}
 
 @router.post("/embed")
 def generate_embedding(input: TextInput):

@@ -9,7 +9,8 @@ class DocumentProcessor:
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,
-            is_separator_regex=False,
+            separators=["\n\n", "\n", " ", ""]  # Try to split on paragraphs first, then lines, etc.
+            # is_separator_regex=False,
         )
 
     def process_pdf(self, file_bytes: bytes, filename: str):

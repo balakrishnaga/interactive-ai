@@ -2,23 +2,37 @@ import { LLM, Message } from "./types";
 
 export class HuggingFaceLLM implements LLM {
     async chat(messages: Message[]): Promise<Message> {
-        const prompt = messages
-            .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-            .join("\n") + "\nAssistant:";
+        const serviceUrl = process.env.EMBEDDING_SERVICE_URL || "http://localhost:8000";
 
-        const res = await fetch(
-            `https://api-inference.huggingface.co/models/${process.env.HF_MODEL}`,
-            {
+        try {
+            // Map "bot" role to "assistant" for the backend if needed, 
+            // though the backend currently handles "user", "assistant", and "system".
+            const backendMessages = messages.map(m => ({
+                role: m.role === "bot" ? "assistant" : m.role,
+                content: m.content
+            }));
+
+            const res = await fetch(`${serviceUrl}/chat`, {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${process.env.HF_API_KEY}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ inputs: prompt }),
-            }
-        );
+                body: JSON.stringify({ messages: backendMessages }),
+            });
 
-        const data = await res.json();
-        return data[0]?.generated_text || "No response";
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.detail || `HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+            return {
+                role: "bot",
+                content: data.response || "No response"
+            };
+        } catch (error: any) {
+            console.error("Local LLM Service Error:", error);
+            throw new Error(`Failed to call local LLM service: ${error.message}`);
+        }
     }
 }

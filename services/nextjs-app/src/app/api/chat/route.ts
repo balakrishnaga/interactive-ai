@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         let sources: any[] = [];
 
         try {
-            const searchResults = await vectorSearch(lastMessage);
+            const searchResults = [] as any[]; //await vectorSearch(lastMessage);
             if (searchResults.length > 0) {
                 context = "\n\nContext from uploaded documents:\n" +
                     searchResults.map(r => `[From ${r.metadata.filename}, Page ${r.metadata.pageIndex}]: ${r.text}`).join("\n---\n");
@@ -35,7 +35,13 @@ export async function POST(req: Request) {
         }
 
         const llm = getLLM();
+        console.log("Augmented Messages:", augmentedMessages);
+        console.log("Context:", context);
+        console.log("Sources:", sources);
+        console.log("LLM:", llm);
         const response = await llm.chat(augmentedMessages);
+
+        console.log("Response:", response);
 
         return NextResponse.json({ response, sources });
     } catch (error: any) {

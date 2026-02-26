@@ -8,3 +8,5 @@ langchain
 langchain-community
 pypdf
 python-multipart
+langchain-huggingface
+python-dotenv
