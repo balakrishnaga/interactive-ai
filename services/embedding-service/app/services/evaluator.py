@@ -47,15 +47,37 @@ class EvaluatorService:
         if text is None:
             return ""
         s = text.strip()
-        # Strip markdown code fences
-        fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", s, re.DOTALL)
-        if fence:
-            return fence.group(1)
-        start = s.find("{")
-        end = s.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            return s[start : end + 1]
-        return s
+        # Strip markdown code fences, then brace-balance to find the first
+        # complete JSON object (handles `}` inside string values).
+        fence = re.search(r"```(?:json)?\s*(.*?)\s*```", s, re.DOTALL)
+        candidate = fence.group(1) if fence else s
+        # Locate the first '{' and walk the string tracking nesting depth,
+        # while respecting JSON string literals and escape sequences.
+        start = candidate.find("{")
+        if start == -1:
+            return candidate
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, len(candidate)):
+            ch = candidate[i]
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+            else:
+                if ch == '"':
+                    in_string = True
+                elif ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return candidate[start:i + 1]
+        return candidate[start:]
 
     async def _parse_json_response(self, text: str) -> Dict[str, Any]:
         """Try json.loads first, then fall back to regex extraction."""
@@ -83,6 +105,11 @@ class EvaluatorService:
             result["contradiction"] = contradiction_match.group(1).lower() == "true"
         return result
 
+    @staticmethod
+    def _build_context(chunks: List[Dict[str, Any]]) -> str:
+        """Join retrieved chunk texts with a '---' separator for LLM prompts."""
+        return "\n---\n".join(chunk.get("text", "") for chunk in (chunks or []))
+
     async def compute_groundedness(
         self,
         query: str,
@@ -91,9 +118,7 @@ class EvaluatorService:
         llm: Any,
     ) -> float:
         """Fraction of response claims supported by chunks (LLM judge)."""
-        context = "\n---\n".join(
-            chunk.get("text", "") for chunk in (chunks or [])
-        )
+        context = self._build_context(chunks)
         prompt = (
             "You are evaluating whether the claims in an assistant response "
             "are supported by the provided context chunks.\n\n"
@@ -127,9 +152,7 @@ class EvaluatorService:
         llm: Any,
     ) -> float:
         """1 if response does not contradict chunks, 0 if it does (LLM judge)."""
-        context = "\n---\n".join(
-            chunk.get("text", "") for chunk in (chunks or [])
-        )
+        context = self._build_context(chunks)
         prompt = (
             "You are evaluating whether an assistant response contradicts the "
             "provided context chunks.\n\n"
@@ -152,9 +175,17 @@ class EvaluatorService:
         if contradiction is None:
             # String-level fallback detection
             lowered = (raw or "").lower()
-            if "contradiction\": true" in lowered or "contradiction\":true" in lowered:
+            true_marker = '"contradiction": true'
+            true_marker_compact = '"contradiction":true'
+            false_marker = '"contradiction": false'
+            false_marker_compact = '"contradiction":false'
+            if true_marker in lowered or true_marker_compact in lowered:
                 contradiction = True
-            elif "no contradiction" in lowered or "contradiction\": false" in lowered or "contradiction\":false" in lowered:
+            elif (
+                "no contradiction" in lowered
+                or false_marker in lowered
+                or false_marker_compact in lowered
+            ):
                 contradiction = False
             else:
                 return 0.0
