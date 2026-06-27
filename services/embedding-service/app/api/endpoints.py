@@ -1,8 +1,10 @@
 from fastapi import APIRouter, UploadFile, File
 from app.schemas.text_input import TextInput, BatchInput, ChatInput
+from app.schemas.retrieve import RetrieveRequest, RetrieveResponse
 from app.services.embedding import embedding_service
 from app.services.document_processor import document_processor
 from app.services.llm_service import llm_service
+from app.services.retriever import retriever_service
 
 router = APIRouter()
 
@@ -38,5 +40,9 @@ async def process_pdf(file: UploadFile = File(...)):
     # 4. Attach embeddings back to chunks
     for i, chunk in enumerate(chunks):
         chunk["embedding"] = embeddings[i]
-        
+
     return {"chunks": chunks}
+
+@router.post("/retrieve", response_model=RetrieveResponse)
+async def retrieve(input: RetrieveRequest):
+    return retriever_service.retrieve(input.query, input.top_k, input.rerank)
