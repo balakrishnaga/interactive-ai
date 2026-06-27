@@ -3,10 +3,10 @@ import { useState, useRef, useEffect } from "react";
 import { Message } from "@/lib/llm/types";
 import MessageContent from "./MessageContent";
 import ThinkingIndicator from "./ThinkingIndicator";
+import ObservabilityPanel from "./ObservabilityPanel";
+import type { ObservabilityTrace } from "@/lib/observability";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Settings, Plus, Sparkles, Code, BookOpen, Lightbulb, Paperclip, FileText, Loader2, Trash2 } from "lucide-react";
-
-const SUGGESTIONS = [{}];
+import { Send, Plus, Sparkles, Paperclip, FileText, Loader2, Trash2, Activity } from "lucide-react";
 
 export default function ChatBox() {
     const [input, setInput] = useState("");
@@ -15,10 +15,13 @@ export default function ChatBox() {
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [mode, setMode] = useState<"chat" | "insight">("chat");
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [hasUploadedFile, setHasUploadedFile] = useState(false);
     const [documents, setDocuments] = useState<string[]>([]);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [isObservabilityOpen, setIsObservabilityOpen] = useState(false);
+    const [observability, setObservability] = useState<ObservabilityTrace | null>(null);
+    const [topK, setTopK] = useState(5);
+    const [enableRerank, setEnableRerank] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,9 +95,10 @@ export default function ChatBox() {
             } else {
                 throw new Error(data.error || "Upload failed");
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error("Upload error:", error);
-            alert(`Failed to upload PDF: ${error.message}`);
+            const message = error instanceof Error ? error.message : "Unknown error";
+            alert(`Failed to upload PDF: ${message}`);
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -120,9 +124,10 @@ export default function ChatBox() {
                 const data = await res.json();
                 alert(`Failed to delete: ${data.error}`);
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error("Delete error:", error);
-            alert(`Error deleting document: ${error.message}`);
+            const message = error instanceof Error ? error.message : "Unknown error";
+            alert(`Error deleting document: ${message}`);
         } finally {
             setIsDeleting(null);
         }
@@ -143,16 +148,18 @@ export default function ChatBox() {
             const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: updatedMessages }),
+                body: JSON.stringify({ messages: updatedMessages, top_k: topK, rerank: enableRerank }),
             });
 
             const data = await res.json();
             const botMessage: Message = {
                 role: "bot",
                 content: data.response,
-                sources: data.sources
+                sources: data.sources,
+                observability: data.observability
             };
             setMessages((prev) => [...prev, botMessage]);
+            setObservability(data.observability ?? null);
         } catch (error) {
             console.error("Failed to send message:", error);
             const errorMessage: Message = {
@@ -212,6 +219,14 @@ export default function ChatBox() {
                     </div>
 
                     <div className="topbar-actions">
+                        <button
+                            className="new-chat-btn"
+                            onClick={() => setIsObservabilityOpen(!isObservabilityOpen)}
+                            title="Toggle observability panel"
+                            aria-label="Toggle observability panel"
+                        >
+                            <Activity size={18} />
+                        </button>
                         <button
                             className="new-chat-btn"
                             onClick={handleNewChat}
@@ -454,6 +469,19 @@ export default function ChatBox() {
                         </aside>
                     )}
                 </div>
+
+                {isObservabilityOpen && (
+                    <ObservabilityPanel
+                        observability={observability}
+                        topK={topK}
+                        setTopK={setTopK}
+                        enableRerank={enableRerank}
+                        setEnableRerank={setEnableRerank}
+                        onUploadClick={() => fileInputRef.current?.click()}
+                        isUploading={isUploading}
+                        onRunRetrieval={(query) => sendMessage(query)}
+                    />
+                )}
             </div>
         </>
     );
