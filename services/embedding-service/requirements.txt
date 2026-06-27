@@ -11,3 +11,4 @@ pypdf
 python-multipart
 langchain-huggingface
 python-dotenv
+pymongo
