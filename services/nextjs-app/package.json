@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "jest --forceExit"
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.12",
@@ -25,11 +26,19 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
-    "typescript": "^5"
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "node-fetch": "^2.7.0",
+    "typescript": "^5",
+    "undici": "^8.5.0"
   }
 }

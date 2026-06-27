@@ -1,0 +1,216 @@
+import asyncio
+import json
+import re
+from typing import List, Dict, Any
+
+
+class EvaluatorService:
+    """Computes RAG quality metrics for retrieved chunks and generated responses."""
+
+    _TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
+
+    def _tokenize(self, text: str) -> set:
+        if not text:
+            return set()
+        return set(self._TOKEN_RE.findall(text.lower()))
+
+    def compute_recall(self, query: str, chunks: List[Dict[str, Any]]) -> float:
+        """Fraction of query terms/concepts covered by retrieved chunks."""
+        query_terms = self._tokenize(query)
+        if not query_terms:
+            return 0.0
+        chunk_terms = set()
+        for chunk in chunks or []:
+            chunk_terms.update(self._tokenize(chunk.get("text", "")))
+        if not chunk_terms:
+            return 0.0
+        matched = query_terms & chunk_terms
+        return len(matched) / len(query_terms)
+
+    def compute_precision(self, query: str, chunks: List[Dict[str, Any]]) -> float:
+        """Average relevance score of retrieved chunks."""
+        if not chunks:
+            return 0.0
+        scores = []
+        for chunk in chunks:
+            if "rerank_score" in chunk:
+                scores.append(float(chunk["rerank_score"]))
+            elif "vector_score" in chunk:
+                scores.append(float(chunk["vector_score"]))
+        if not scores:
+            return 0.0
+        return sum(scores) / len(scores)
+
+    @staticmethod
+    def _extract_json_object(text: str) -> str:
+        """Pull the first balanced JSON object from a possibly noisy LLM response."""
+        if text is None:
+            return ""
+        s = text.strip()
+        # Strip markdown code fences, then brace-balance to find the first
+        # complete JSON object (handles `}` inside string values).
+        fence = re.search(r"```(?:json)?\s*(.*?)\s*```", s, re.DOTALL)
+        candidate = fence.group(1) if fence else s
+        # Locate the first '{' and walk the string tracking nesting depth,
+        # while respecting JSON string literals and escape sequences.
+        start = candidate.find("{")
+        if start == -1:
+            return candidate
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, len(candidate)):
+            ch = candidate[i]
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+            else:
+                if ch == '"':
+                    in_string = True
+                elif ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return candidate[start:i + 1]
+        return candidate[start:]
+
+    async def _parse_json_response(self, text: str) -> Dict[str, Any]:
+        """Try json.loads first, then fall back to regex extraction."""
+        if text is None:
+            return {}
+        raw = self._extract_json_object(text)
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Fallback: regex for supported/unsupported ints
+        supported_match = re.search(r'"supported"\s*:\s*(\d+)', text)
+        unsupported_match = re.search(r'"unsupported"\s*:\s*(\d+)', text)
+        contradiction_match = re.search(
+            r'"contradiction"\s*:\s*(true|false)', text, re.IGNORECASE
+        )
+
+        result: Dict[str, Any] = {}
+        if supported_match:
+            result["supported"] = int(supported_match.group(1))
+        if unsupported_match:
+            result["unsupported"] = int(unsupported_match.group(1))
+        if contradiction_match:
+            result["contradiction"] = contradiction_match.group(1).lower() == "true"
+        return result
+
+    @staticmethod
+    def _build_context(chunks: List[Dict[str, Any]]) -> str:
+        """Join retrieved chunk texts with a '---' separator for LLM prompts."""
+        return "\n---\n".join(chunk.get("text", "") for chunk in (chunks or []))
+
+    async def compute_groundedness(
+        self,
+        query: str,
+        response: str,
+        chunks: List[Dict[str, Any]],
+        llm: Any,
+    ) -> float:
+        """Fraction of response claims supported by chunks (LLM judge)."""
+        context = self._build_context(chunks)
+        prompt = (
+            "You are evaluating whether the claims in an assistant response "
+            "are supported by the provided context chunks.\n\n"
+            f"Context:\n{context}\n\n"
+            f"Query: {query}\n\n"
+            f"Response: {response}\n\n"
+            "For each distinct claim in the response, decide whether it is "
+            "supported by the context. Return ONLY a JSON object with two "
+            "integer fields: 'supported' (count of supported claims) and "
+            "'unsupported' (count of unsupported claims).\n"
+            "Example: {\"supported\": 3, \"unsupported\": 1}"
+        )
+        try:
+            raw = await llm.chat([{"role": "user", "content": prompt}])
+            data = await self._parse_json_response(raw)
+        except Exception:
+            return 0.0
+
+        supported = int(data.get("supported", 0) or 0)
+        unsupported = int(data.get("unsupported", 0) or 0)
+        total = supported + unsupported
+        if total == 0:
+            return 0.0
+        return supported / total
+
+    async def compute_faithfulness(
+        self,
+        query: str,
+        response: str,
+        chunks: List[Dict[str, Any]],
+        llm: Any,
+    ) -> float:
+        """1 if response does not contradict chunks, 0 if it does (LLM judge)."""
+        context = self._build_context(chunks)
+        prompt = (
+            "You are evaluating whether an assistant response contradicts the "
+            "provided context chunks.\n\n"
+            f"Context:\n{context}\n\n"
+            f"Query: {query}\n\n"
+            f"Response: {response}\n\n"
+            "Determine whether the response contains any factual statement "
+            "that directly contradicts the context. Return ONLY a JSON object "
+            "with a single boolean field 'contradiction' (true if there is a "
+            "contradiction, false otherwise).\n"
+            "Example: {\"contradiction\": false}"
+        )
+        try:
+            raw = await llm.chat([{"role": "user", "content": prompt}])
+            data = await self._parse_json_response(raw)
+        except Exception:
+            return 0.0
+
+        contradiction = data.get("contradiction")
+        if contradiction is None:
+            # String-level fallback detection
+            lowered = (raw or "").lower()
+            true_marker = '"contradiction": true'
+            true_marker_compact = '"contradiction":true'
+            false_marker = '"contradiction": false'
+            false_marker_compact = '"contradiction":false'
+            if true_marker in lowered or true_marker_compact in lowered:
+                contradiction = True
+            elif (
+                "no contradiction" in lowered
+                or false_marker in lowered
+                or false_marker_compact in lowered
+            ):
+                contradiction = False
+            else:
+                return 0.0
+        return 0.0 if contradiction else 1.0
+
+    async def evaluate(
+        self,
+        query: str,
+        response: str,
+        chunks: List[Dict[str, Any]],
+        llm: Any,
+    ) -> Dict[str, float]:
+        """Returns dict with recall, precision, groundedness, faithfulness."""
+        recall = self.compute_recall(query, chunks)
+        precision = self.compute_precision(query, chunks)
+        groundedness, faithfulness = await asyncio.gather(
+            self.compute_groundedness(query, response, chunks, llm),
+            self.compute_faithfulness(query, response, chunks, llm),
+        )
+        return {
+            "recall": recall,
+            "precision": precision,
+            "groundedness": groundedness,
+            "faithfulness": faithfulness,
+        }
+
+
+evaluator_service = EvaluatorService()

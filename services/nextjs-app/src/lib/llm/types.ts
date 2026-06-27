@@ -1,3 +1,5 @@
+import type { ObservabilityTrace } from "@/lib/observability";
+
 export interface Message {
     role: "user" | "bot";
     content: string;
@@ -5,6 +7,7 @@ export interface Message {
         filename: string;
         pageIndex: number;
     }>;
+    observability?: ObservabilityTrace | null;
 }
 
 export interface LLM {
