@@ -1,11 +1,12 @@
 import os
-from typing import List, Dict, Any
+from typing import Dict, Any
 from pymongo import MongoClient
 from app.services.embedding import embedding_service
 from app.services.reranker import reranker_service
 
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 MONGODB_DB = os.getenv("MONGODB_DB", "interactive-ai")
+
 
 class RetrieverService:
     def __init__(self):
@@ -63,5 +64,6 @@ class RetrieverService:
             "reranked_chunks": reranked_chunks,
             "reranker_used": rerank and reranker_service.model is not None
         }
+
 
 retriever_service = RetrieverService()
