@@ -477,9 +477,6 @@ export default function ChatBox() {
                         setTopK={setTopK}
                         enableRerank={enableRerank}
                         setEnableRerank={setEnableRerank}
-                        onUploadClick={() => fileInputRef.current?.click()}
-                        isUploading={isUploading}
-                        onRunRetrieval={(query) => sendMessage(query)}
                     />
                 )}
             </div>

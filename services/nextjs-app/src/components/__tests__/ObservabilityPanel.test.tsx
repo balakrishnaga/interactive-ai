@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import ObservabilityPanel from "../ObservabilityPanel";
 import type { ObservabilityTrace } from "@/lib/observability";
 
@@ -34,25 +34,5 @@ describe("ObservabilityPanel", () => {
     expect(screen.getAllByText("chunk a").length).toBeGreaterThan(0);
     expect(screen.getAllByText("chunk b").length).toBeGreaterThan(0);
     expect(screen.getByText("90%")).toBeInTheDocument();
-  });
-
-  it("calls onRunRetrieval with query", () => {
-    const onRun = jest.fn();
-    render(
-      <ObservabilityPanel
-        observability={null}
-        topK={5}
-        setTopK={() => {}}
-        enableRerank={true}
-        setEnableRerank={() => {}}
-        onRunRetrieval={onRun}
-      />
-    );
-
-    fireEvent.change(screen.getByPlaceholderText("Ask a question..."), {
-      target: { value: "test query" }
-    });
-    fireEvent.click(screen.getByText("Run Retrieval"));
-    expect(onRun).toHaveBeenCalledWith("test query");
   });
 });
