@@ -11,12 +11,7 @@ export interface RetrievedChunk {
   rerank_score?: number;
 }
 
-export interface ObservabilityMetrics {
-  recall: number;
-  precision: number;
-  groundedness: number;
-  faithfulness: number;
-}
+export type ObservabilityMetrics = Record<string, number>;
 
 export interface ObservabilityTrace {
   query: string;

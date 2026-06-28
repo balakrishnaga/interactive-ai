@@ -10,6 +10,55 @@ interface Props {
   setEnableRerank: (v: boolean) => void;
 }
 
+interface MetricSection {
+  id: string;
+  title: string;
+  subtitle: string;
+  keys: string[];
+}
+
+const METRIC_SECTIONS: MetricSection[] = [
+  {
+    id: "retriever",
+    title: "Retriever Metrics",
+    subtitle: "Where & What",
+    keys: ["context_precision", "context_recall", "context_relevancy", "hit_rate", "mrr", "ndcg"]
+  },
+  {
+    id: "generator",
+    title: "Generator Metrics",
+    subtitle: "How",
+    keys: ["answer_relevancy", "answer_correctness", "bleu", "rouge", "bertscore"]
+  },
+  {
+    id: "end_to_end",
+    title: "End-to-End Metrics",
+    subtitle: "RAG Triad",
+    keys: ["faithfulness", "contextual_relevancy", "answer_relevancy"]
+  }
+];
+
+const METRIC_LABELS: Record<string, string> = {
+  context_precision: "Context Precision",
+  context_recall: "Context Recall",
+  context_relevancy: "Context Relevancy",
+  hit_rate: "Hit Rate",
+  mrr: "MRR",
+  ndcg: "NDCG",
+  answer_relevancy: "Answer Relevancy",
+  answer_correctness: "Answer Correctness",
+  bleu: "BLEU",
+  rouge: "ROUGE",
+  bertscore: "BERTScore",
+  faithfulness: "Faithfulness",
+  contextual_relevancy: "Contextual Relevancy",
+  groundedness: "Groundedness"
+};
+
+function labelFor(key: string): string {
+  return METRIC_LABELS[key] ?? key;
+}
+
 function ChunkCard({ chunk, highlight }: { chunk: RetrievedChunk; highlight?: boolean }) {
   return (
     <div className={`observability-card ${highlight ? "highlight" : ""}`}>
@@ -102,13 +151,31 @@ export default function ObservabilityPanel({
                 )}
 
                 {observability.metrics && (
-                  <div className="observability-metric-grid">
-                    {Object.entries(observability.metrics).map(([key, value]) => (
-                      <div key={key} className="observability-card observability-metric">
-                        <div className="observability-metric-label">{key}</div>
-                        <div className="observability-metric-value">{(value * 100).toFixed(0)}%</div>
-                      </div>
-                    ))}
+                  <div className="observability-metrics-container">
+                    {METRIC_SECTIONS.map((section) => {
+                      const entries = section.keys
+                        .filter((key) => observability.metrics && key in observability.metrics)
+                        .map((key) => [key, observability.metrics![key]] as [string, number]);
+                      if (entries.length === 0) {
+                        return null;
+                      }
+                      return (
+                        <div key={section.id} className="observability-metric-section">
+                          <div className="observability-metric-section-header">
+                            <div className="observability-metric-section-title">{section.title}</div>
+                            <div className="observability-metric-section-subtitle">{section.subtitle}</div>
+                          </div>
+                          <div className="observability-metric-grid">
+                            {entries.map(([key, value]) => (
+                              <div key={key} className="observability-card observability-metric">
+                                <div className="observability-metric-label">{labelFor(key)}</div>
+                                <div className="observability-metric-value">{(value * 100).toFixed(0)}%</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </>

@@ -41,6 +41,30 @@ class EvaluatorService:
             return 0.0
         return sum(scores) / len(scores)
 
+    def compute_context_relevancy(
+        self, query: str, chunks: List[Dict[str, Any]]
+    ) -> float:
+        """Average fraction of query terms found in each chunk (token-overlap proxy)."""
+        query_terms = self._tokenize(query)
+        if not query_terms:
+            return 0.0
+        if not chunks:
+            return 0.0
+        per_chunk_scores: List[float] = []
+        for chunk in chunks:
+            chunk_terms = self._tokenize(chunk.get("text", ""))
+            if not chunk_terms:
+                per_chunk_scores.append(0.0)
+                continue
+            matched = query_terms & chunk_terms
+            per_chunk_scores.append(len(matched) / len(query_terms))
+        return sum(per_chunk_scores) / len(per_chunk_scores)
+
+    @staticmethod
+    def compute_hit_rate(chunks: List[Dict[str, Any]]) -> float:
+        """1.0 if any chunks were retrieved, else 0.0."""
+        return 1.0 if chunks else 0.0
+
     @staticmethod
     def _extract_json_object(text: str) -> str:
         """Pull the first balanced JSON object from a possibly noisy LLM response."""
@@ -104,6 +128,29 @@ class EvaluatorService:
         if contradiction_match:
             result["contradiction"] = contradiction_match.group(1).lower() == "true"
         return result
+
+    async def _parse_score_response(self, text: str) -> int:
+        """Parse a `{"score": <int>}` response and return the int (0-10), else 0."""
+        if text is None:
+            return 0
+        raw = self._extract_json_object(text)
+        try:
+            data = json.loads(raw)
+            score = data.get("score")
+            if score is None:
+                return 0
+            return max(0, min(10, int(score)))
+        except (json.JSONDecodeError, ValueError, TypeError):
+            pass
+
+        # Fallback: regex on the raw text
+        match = re.search(r'"score"\s*:\s*(-?\d+)', text)
+        if match:
+            try:
+                return max(0, min(10, int(match.group(1))))
+            except (TypeError, ValueError):
+                return 0
+        return 0
 
     @staticmethod
     def _build_context(chunks: List[Dict[str, Any]]) -> str:
@@ -191,6 +238,31 @@ class EvaluatorService:
                 return 0.0
         return 0.0 if contradiction else 1.0
 
+    async def compute_answer_relevancy(
+        self,
+        query: str,
+        response: str,
+        llm: Any,
+    ) -> float:
+        """LLM-as-judge: how relevant the response is to the query (0-1)."""
+        prompt = (
+            "You are evaluating how relevant an assistant response is to a "
+            "user query. A response is relevant if it addresses the query, "
+            "even if it is incomplete or partially correct.\n\n"
+            f"Query: {query}\n\n"
+            f"Response: {response}\n\n"
+            "Score the relevancy from 0 to 10 where 0 means completely "
+            "irrelevant (off-topic) and 10 means fully addresses the query. "
+            "Return ONLY a JSON object with a single integer field 'score'.\n"
+            "Example: {\"score\": 7}"
+        )
+        try:
+            raw = await llm.chat([{"role": "user", "content": prompt}])
+            score = await self._parse_score_response(raw)
+        except Exception:
+            return 0.0
+        return score / 10.0
+
     async def evaluate(
         self,
         query: str,
@@ -198,18 +270,28 @@ class EvaluatorService:
         chunks: List[Dict[str, Any]],
         llm: Any,
     ) -> Dict[str, float]:
-        """Returns dict with recall, precision, groundedness, faithfulness."""
-        recall = self.compute_recall(query, chunks)
-        precision = self.compute_precision(query, chunks)
-        groundedness, faithfulness = await asyncio.gather(
+        """Returns dict with retriever, generator, and end-to-end metric keys."""
+        context_precision = self.compute_precision(query, chunks)
+        context_recall = self.compute_recall(query, chunks)
+        context_relevancy = self.compute_context_relevancy(query, chunks)
+        hit_rate = self.compute_hit_rate(chunks)
+        groundedness, faithfulness, answer_relevancy = await asyncio.gather(
             self.compute_groundedness(query, response, chunks, llm),
             self.compute_faithfulness(query, response, chunks, llm),
+            self.compute_answer_relevancy(query, response, llm),
         )
         return {
-            "recall": recall,
-            "precision": precision,
-            "groundedness": groundedness,
+            # retriever metrics
+            "context_precision": context_precision,
+            "context_recall": context_recall,
+            "context_relevancy": context_relevancy,
+            "hit_rate": hit_rate,
+            # generator metrics
+            "answer_relevancy": answer_relevancy,
+            # end-to-end metrics (RAG triad + aliases)
             "faithfulness": faithfulness,
+            "groundedness": groundedness,
+            "contextual_relevancy": context_relevancy,
         }
 
 

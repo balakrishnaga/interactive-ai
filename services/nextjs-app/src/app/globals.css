@@ -2004,6 +2004,41 @@ a:hover {
   gap: var(--space-md);
 }
 
+.observability-panel .observability-metrics-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.observability-panel .observability-metric-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.observability-panel .observability-metric-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.observability-panel .observability-metric-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.observability-panel .observability-metric-section-subtitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+
 .observability-panel .observability-metric {
   text-align: center;
   margin-bottom: 0;

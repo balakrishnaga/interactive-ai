@@ -6,7 +6,7 @@ import ThinkingIndicator from "./ThinkingIndicator";
 import ObservabilityPanel from "./ObservabilityPanel";
 import type { ObservabilityTrace } from "@/lib/observability";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Plus, Sparkles, Paperclip, FileText, Loader2, Trash2, Activity } from "lucide-react";
+import { Send, Plus, Paperclip, FileText, Loader2, Trash2, Activity } from "lucide-react";
 
 export default function ChatBox() {
     const [input, setInput] = useState("");
@@ -14,7 +14,7 @@ export default function ChatBox() {
     const [insightMessages, setInsightMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
-    const [mode, setMode] = useState<"chat" | "insight">("chat");
+    const [mode] = useState<"chat" | "insight">("insight");
     const [hasUploadedFile, setHasUploadedFile] = useState(false);
     const [documents, setDocuments] = useState<string[]>([]);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -201,17 +201,7 @@ export default function ChatBox() {
                 <header className="chat-topbar">
                     <div className="topbar-left">
                         <nav className="topbar-nav">
-                            <button
-                                className={`nav-link ${mode === 'chat' ? 'active' : ''}`}
-                                onClick={() => setMode('chat')}
-                            >
-                                <Sparkles size={16} />
-                                Chat
-                            </button>
-                            <button
-                                className={`nav-link ${mode === 'insight' ? 'active' : ''}`}
-                                onClick={() => setMode('insight')}
-                            >
+                            <button className="nav-link active" aria-current="page">
                                 <FileText size={16} />
                                 Insight Engine
                             </button>
@@ -244,66 +234,49 @@ export default function ChatBox() {
                         <div className="messages-container">
                             <div className="messages-inner">
                                 {messages.length === 0 ? (
-                                    mode === "insight" ? (
-                                        <div className="rag-landing">
-                                            <motion.div
-                                                className="rag-landing-content"
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ duration: 0.5 }}
-                                            >
-                                                <div className="rag-logo">✦</div>
-                                                <h4 className="rag-title">Insight Engine</h4>
-                                                <p className="rag-subtitle">
-                                                    Empower your Interactive AI with specialized knowledge. Upload PDFs to search, analyze, and query your documents with professional-grade precision.
-                                                </p>
+                                    <div className="rag-landing">
+                                        <motion.div
+                                            className="rag-landing-content"
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.5 }}
+                                        >
+                                            <div className="rag-logo">✦</div>
+                                            <h4 className="rag-title">Insight Engine</h4>
+                                            <p className="rag-subtitle">
+                                                Empower your Interactive AI with specialized knowledge. Upload PDFs to search, analyze, and query your documents with professional-grade precision.
+                                            </p>
 
-                                                <div className="upload-container">
-                                                    <div
-                                                        className={`upload-box ${isUploading ? 'uploading' : ''}`}
-                                                        onClick={() => !isUploading && fileInputRef.current?.click()}
-                                                    >
-                                                        {isUploading ? (
-                                                            <div className="upload-status">
-                                                                <Loader2 size={32} className="animate-spin mb-3" />
-                                                                <span>Indexing document...</span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="upload-prompt">
-                                                                <Paperclip size={32} className="mb-3" />
-                                                                <span className="upload-text">Initialize Insight Engine</span>
-                                                                <span className="upload-subtext">PDF Documents • Max 10MB</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {!isUploading && (
-                                                        <button
-                                                            className="analyze-btn"
-                                                            onClick={() => fileInputRef.current?.click()}
-                                                        >
-                                                            Start Search
-                                                        </button>
+                                            <div className="upload-container">
+                                                <div
+                                                    className={`upload-box ${isUploading ? 'uploading' : ''}`}
+                                                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                                                >
+                                                    {isUploading ? (
+                                                        <div className="upload-status">
+                                                            <Loader2 size={32} className="animate-spin mb-3" />
+                                                            <span>Indexing document...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="upload-prompt">
+                                                            <Paperclip size={32} className="mb-3" />
+                                                            <span className="upload-text">Initialize Insight Engine</span>
+                                                            <span className="upload-subtext">PDF Documents • Max 10MB</span>
+                                                        </div>
                                                     )}
                                                 </div>
-                                            </motion.div>
-                                        </div>
-                                    ) : (
-                                        <div className="chat-landing">
-                                            <motion.div
-                                                className="chat-landing-content"
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ duration: 0.5 }}
-                                            >
-                                                <div className="chat-logo">✦</div>
-                                                <h4 className="chat-title">How can I help you today?</h4>
-                                                <p className="chat-subtitle">
-                                                    Experience the next generation of AI chat. Fast, intuitive, and designed for your workflows.
-                                                </p>
-                                            </motion.div>
-                                        </div>
-                                    )
+
+                                                {!isUploading && (
+                                                    <button
+                                                        className="analyze-btn"
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                    >
+                                                        Start Search
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    </div>
                                 ) : (
                                     <AnimatePresence initial={false}>
                                         {messages.map((m, i) => (
