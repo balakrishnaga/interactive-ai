@@ -285,13 +285,16 @@ class EvaluatorService:
             "context_precision": context_precision,
             "context_recall": context_recall,
             "context_relevancy": context_relevancy,
+            "contextual_relevancy": context_relevancy,
             "hit_rate": hit_rate,
             # generator metrics
             "answer_relevancy": answer_relevancy,
-            # end-to-end metrics (RAG triad + aliases)
+            # end-to-end metrics (RAG triad)
             "faithfulness": faithfulness,
             "groundedness": groundedness,
-            "contextual_relevancy": context_relevancy,
+            # canonical names expected by the API schema
+            "recall": context_recall,
+            "precision": context_precision,
         }
 
 
