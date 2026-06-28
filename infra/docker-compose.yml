@@ -20,6 +20,8 @@ services:
       dockerfile: Dockerfile
     expose:
       - "8000"
+    env_file:
+      - ../services/nextjs-app/.env
     volumes:
       - hf_cache:/root/.cache/huggingface
     environment:
