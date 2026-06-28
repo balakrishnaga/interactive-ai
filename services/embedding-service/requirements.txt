@@ -13,3 +13,6 @@ python-multipart
 langchain-huggingface
 python-dotenv
 pymongo
+rouge-score
+bert-score
+nltk

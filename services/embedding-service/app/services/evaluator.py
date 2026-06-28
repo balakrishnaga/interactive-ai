@@ -1,7 +1,26 @@
 import asyncio
 import json
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+try:
+    from rouge_score import rouge_scorer as _rouge_scorer
+except ImportError:  # pragma: no cover - declared in requirements.txt
+    _rouge_scorer = None
+
+try:
+    from nltk.translate.bleu_score import (
+        SmoothingFunction as _SmoothingFunction,
+        sentence_bleu as _sentence_bleu,
+    )
+except ImportError:  # pragma: no cover - declared in requirements.txt
+    _SmoothingFunction = None
+    _sentence_bleu = None
+
+try:
+    import bert_score as _bert_score
+except ImportError:  # pragma: no cover - declared in requirements.txt
+    _bert_score = None
 
 
 class EvaluatorService:
@@ -263,23 +282,197 @@ class EvaluatorService:
             return 0.0
         return score / 10.0
 
+    def compute_mrr(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+    ) -> float:
+        """Mean Reciprocal Rank proxy via token-overlap relevance.
+
+        A chunk is considered relevant if its tokens intersect with the query
+        tokens. Returns 1/rank of the first relevant chunk, or 0.0 if none.
+        """
+        query_terms = self._tokenize(query)
+        if not query_terms:
+            return 0.0
+        for index, chunk in enumerate(chunks or [], start=1):
+            chunk_terms = self._tokenize(chunk.get("text", ""))
+            if query_terms & chunk_terms:
+                return 1.0 / index
+        return 0.0
+
+    async def compute_answer_correctness(
+        self,
+        query: str,
+        response: str,
+        reference_answer: Optional[str],
+        llm: Any,
+    ) -> float:
+        """LLM-as-judge correctness vs reference answer (0-1)."""
+        if not reference_answer:
+            return 0.0
+        prompt = (
+            "You are evaluating whether an assistant response correctly answers "
+            "a user query compared to a reference answer.\n\n"
+            f"Query: {query}\n\n"
+            f"Reference Answer: {reference_answer}\n\n"
+            f"Assistant Response: {response}\n\n"
+            "Score the correctness from 0 to 10, where 0 means completely "
+            "incorrect or unrelated and 10 means factually and semantically "
+            "equivalent to the reference answer.\n"
+            "Return ONLY a JSON object with a single integer field 'score'.\n"
+            "Example: {\"score\": 8}"
+        )
+        try:
+            raw = await llm.chat([{"role": "user", "content": prompt}])
+            score = await self._parse_score_response(raw)
+        except Exception:
+            return 0.0
+        return score / 10.0
+
+    def compute_rouge_scores(
+        self,
+        response: str,
+        reference_answer: Optional[str],
+    ) -> Dict[str, float]:
+        """Compute ROUGE-1/2/L F-measure vs reference answer."""
+        empty = {"rouge_1": 0.0, "rouge_2": 0.0, "rouge_l": 0.0}
+        if not reference_answer:
+            return empty
+        if _rouge_scorer is None:
+            return empty
+        try:
+            scorer = _rouge_scorer.RougeScorer(
+                ["rouge1", "rouge2", "rougeL"], use_stemmer=True
+            )
+            scores = scorer.score(reference_answer, response or "")
+            return {
+                "rouge_1": float(scores["rouge1"].fmeasure),
+                "rouge_2": float(scores["rouge2"].fmeasure),
+                "rouge_l": float(scores["rougeL"].fmeasure),
+            }
+        except Exception:
+            return empty
+
+    def compute_bleu(
+        self,
+        response: str,
+        reference_answer: Optional[str],
+    ) -> float:
+        """Compute sentence-level BLEU vs reference answer."""
+        if not reference_answer:
+            return 0.0
+        if _sentence_bleu is None or _SmoothingFunction is None:
+            return 0.0
+        try:
+            reference_tokens = self._TOKEN_RE.findall(reference_answer.lower())
+            response_tokens = self._TOKEN_RE.findall((response or "").lower())
+            if not reference_tokens or not response_tokens:
+                return 0.0
+            smoothing = _SmoothingFunction().method1
+            return float(
+                _sentence_bleu(
+                    [reference_tokens],
+                    response_tokens,
+                    smoothing_function=smoothing,
+                )
+            )
+        except Exception:
+            return 0.0
+
+    def compute_bertscore(
+        self,
+        response: str,
+        reference_answer: Optional[str],
+    ) -> float:
+        """Compute BERTScore F1 vs reference answer; fallback to 0.0 on error."""
+        if not reference_answer:
+            return 0.0
+        if _bert_score is None:
+            return 0.0
+        try:
+            _, _, f1 = _bert_score.score(
+                [response or ""],
+                [reference_answer],
+                lang="en",
+                verbose=False,
+            )
+            return float(f1[0])
+        except Exception:
+            return 0.0
+
+    @staticmethod
+    def compute_hallucination_rate(groundedness: float) -> float:
+        """Return 1 - groundedness."""
+        return 1.0 - groundedness
+
+    async def compute_response_coherence(
+        self,
+        query: str,
+        response: str,
+        llm: Any,
+    ) -> float:
+        """LLM-as-judge coherence/readability score (0-1)."""
+        prompt = (
+            "You are evaluating the coherence and readability of an assistant "
+            "response.\n\n"
+            f"Query: {query}\n\n"
+            f"Assistant Response: {response}\n\n"
+            "Score the response from 0 to 10, where 0 means incoherent, "
+            "unreadable, or logically broken and 10 means fluent, "
+            "well-structured, and easy to read.\n"
+            "Return ONLY a JSON object with a single integer field 'score'.\n"
+            "Example: {\"score\": 8}"
+        )
+        try:
+            raw = await llm.chat([{"role": "user", "content": prompt}])
+            score = await self._parse_score_response(raw)
+        except Exception:
+            return 0.0
+        return score / 10.0
+
     async def evaluate(
         self,
         query: str,
         response: str,
         chunks: List[Dict[str, Any]],
         llm: Any,
+        reference_answer: Optional[str] = None,
     ) -> Dict[str, float]:
         """Returns dict with retriever, generator, and end-to-end metric keys."""
+        # 1. Synchronous retriever metrics.
         context_precision = self.compute_precision(query, chunks)
         context_recall = self.compute_recall(query, chunks)
         context_relevancy = self.compute_context_relevancy(query, chunks)
         hit_rate = self.compute_hit_rate(chunks)
-        groundedness, faithfulness, answer_relevancy = await asyncio.gather(
+        mean_reciprocal_rank = self.compute_mrr(query, chunks)
+
+        # 2. Reference-based metrics off the event loop (CPU-bound).
+        rouge_scores = await asyncio.to_thread(
+            self.compute_rouge_scores, response, reference_answer
+        )
+        bleu = await asyncio.to_thread(
+            self.compute_bleu, response, reference_answer
+        )
+        bertscore = await asyncio.to_thread(
+            self.compute_bertscore, response, reference_answer
+        )
+
+        # 3. All independent LLM calls concurrently.
+        (
+            groundedness,
+            faithfulness,
+            answer_relevancy,
+            answer_correctness,
+            response_coherence,
+        ) = await asyncio.gather(
             self.compute_groundedness(query, response, chunks, llm),
             self.compute_faithfulness(query, response, chunks, llm),
             self.compute_answer_relevancy(query, response, llm),
+            self.compute_answer_correctness(query, response, reference_answer, llm),
+            self.compute_response_coherence(query, response, llm),
         )
+
         return {
             # retriever metrics
             "context_precision": context_precision,
@@ -287,11 +480,20 @@ class EvaluatorService:
             "context_relevancy": context_relevancy,
             "contextual_relevancy": context_relevancy,
             "hit_rate": hit_rate,
+            "mean_reciprocal_rank": mean_reciprocal_rank,
             # generator metrics
-            "answer_relevancy": answer_relevancy,
-            # end-to-end metrics (RAG triad)
             "faithfulness": faithfulness,
+            "answer_relevancy": answer_relevancy,
+            "answer_correctness": answer_correctness,
+            "rouge_1": rouge_scores["rouge_1"],
+            "rouge_2": rouge_scores["rouge_2"],
+            "rouge_l": rouge_scores["rouge_l"],
+            "bleu": bleu,
+            "bertscore": bertscore,
+            # end-to-end / advanced metrics
             "groundedness": groundedness,
+            "hallucination_rate": 1.0 - groundedness,
+            "response_coherence": response_coherence,
             # canonical names expected by the API schema
             "recall": context_recall,
             "precision": context_precision,

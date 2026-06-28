@@ -64,6 +64,7 @@ async def evaluate(input: EvaluateRequest):
         input.query,
         input.response,
         [chunk.model_dump() for chunk in input.chunks],
-        llm_service
+        llm_service,
+        input.reference_answer
     )
     return EvaluateResponse(**metrics)
