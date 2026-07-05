@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     const augmentedMessages = messages.map((m: Message) => ({ ...m }));
     if (context) {
       augmentedMessages[augmentedMessages.length - 1].content =
-        `Use the following context to answer the user question if relevant. If the answer is not in the context, answer based on your general knowledge but mention if you are using general knowledge.\n\nContext: ${context}\n\nQuestion: ${lastMessage}`;
+        `Use the following context to answer the user question if relevant. If the answer is not in the context, strictly say answer is not found in the context dont answer using general knowledge.\n\nContext: ${context}\n\nQuestion: ${lastMessage}`;
     }
 
     const llm = getLLM();
