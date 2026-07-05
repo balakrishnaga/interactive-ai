@@ -1,0 +1,434 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AZURE GPT + INSIGHT ENGINE — SAMPLE UI
+   Azure-style accent: #0078D4
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f3f2f1;
+  color: #323130;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+}
+
+/* ─── Header ────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  background: #ffffff;
+  border-bottom: 1px solid #edebe9;
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerTitle {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0078d4;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerBadge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(0, 120, 212, 0.1);
+  color: #0078d4;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 120, 212, 0.25);
+  letter-spacing: 0.02em;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.headerBtn {
+  background: transparent;
+  border: 1px solid #edebe9;
+  color: #605e5c;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 150ms ease;
+}
+
+.headerBtn:hover {
+  background: #f3f2f1;
+  color: #323130;
+}
+
+/* ─── Layout ────────────────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  padding: 18px 24px 90px;
+  overflow-y: auto;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (min-width: 992px) {
+  .grid {
+    grid-template-columns: 8fr 4fr;
+  }
+}
+
+/* ─── Cards ─────────────────────────────────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.cardHeader {
+  padding: 14px 18px;
+  border-bottom: 1px solid #edebe9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #323130;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardBody {
+  padding: 18px;
+}
+
+.cardSubtitle {
+  font-size: 0.75rem;
+  color: #605e5c;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* ─── Observability / Metrics ──────────────────────────────────────────── */
+.metricCard {
+  background: #ffffff;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metricValue {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #323130;
+}
+
+.metricLabel {
+  font-size: 0.75rem;
+  color: #605e5c;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chunkCard {
+  background: #faf9f8;
+  border: 1px solid #edebe9;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 0.8125rem;
+  color: #323130;
+  line-height: 1.5;
+}
+
+/* ─── Bottom input bar ──────────────────────────────────────────────────── */
+.bottomBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid #edebe9;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.chatInputBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #ffffff;
+  border-top: 1px solid #edebe9;
+  border-radius: 0 0 6px 6px;
+}
+
+.bottomInput {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #c8c6c4;
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 0.9375rem;
+  color: #323130;
+  font-family: inherit;
+  resize: none;
+}
+
+.bottomInput:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+
+.closeBtn {
+  background: #ffffff;
+  border: 1px solid #c8c6c4;
+  color: #323130;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.closeBtn:hover {
+  background: #f3f2f1;
+}
+
+/* ─── Chat panel — messages ─────────────────────────────────────────────── */
+.messagesContainer {
+  height: calc(100vh - 320px);
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.landingContainer {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.landingLogo {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.landingTitle {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.landingSubtitle {
+  color: #605e5c;
+  font-size: 0.875rem;
+  margin: 0 auto 24px;
+  max-width: 400px;
+}
+
+.uploadBox {
+  border: 2px dashed #edebe9;
+  border-radius: 8px;
+  padding: 32px;
+  cursor: pointer;
+  background: #faf9f8;
+}
+
+.uploadBoxDisabled {
+  cursor: default;
+}
+
+.uploadStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.messageRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.messageContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.userMessageText {
+  white-space: pre-wrap;
+  font-size: 0.9375rem;
+}
+
+.sourcesContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.sourceChip {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background: #f3f2f1;
+  border-radius: 4px;
+  border: 1px solid #edebe9;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ─── Chat panel — documents section ────────────────────────────────────── */
+.documentsSection {
+  margin-bottom: 20px;
+  border-top: 1px solid #edebe9;
+  padding-top: 16px;
+}
+
+.documentsSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sectionLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #605e5c;
+}
+
+.documentList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.documentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #faf9f8;
+  border-radius: 4px;
+  border: 1px solid #edebe9;
+}
+
+.documentInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deleteDocBtn {
+  background: transparent;
+  border: none;
+  color: #a19f9d;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.emptyDocs {
+  text-align: center;
+  padding: 12px;
+  color: #605e5c;
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+.smallBtn {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ─── Avatars ───────────────────────────────────────────────────────────── */
+.userAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #edebe9;
+  color: #323130;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.botAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0078d4;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+/* ─── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 16px;
+  }
+
+  .headerTitle {
+    font-size: 0.9375rem;
+  }
+
+  .body {
+    padding: 12px 14px 100px;
+  }
+
+  .bottomBar {
+    padding: 10px 14px;
+  }
+}

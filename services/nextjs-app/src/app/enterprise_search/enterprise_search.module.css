@@ -1,0 +1,553 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AZURE GPT + ENTERPRISE DATA — SAMPLE UI
+   Azure-style accent: #0078D4
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f3f2f1;
+  color: #323130;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+}
+
+/* ─── Header ────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  background: #ffffff;
+  border-bottom: 1px solid #edebe9;
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0078d4;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerBadge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(0, 120, 212, 0.1);
+  color: #0078d4;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 120, 212, 0.25);
+  letter-spacing: 0.02em;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.headerBtn {
+  background: transparent;
+  border: 1px solid #edebe9;
+  color: #605e5c;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 150ms ease;
+}
+
+.headerBtn:hover {
+  background: #f3f2f1;
+  color: #323130;
+}
+
+/* ─── Layout ────────────────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  padding: 18px 24px 90px;
+  overflow-y: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (min-width: 992px) {
+  .grid {
+    grid-template-columns: 8fr 4fr;
+  }
+}
+
+/* ─── Cards ─────────────────────────────────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.cardHeader {
+  padding: 14px 18px;
+  border-bottom: 1px solid #edebe9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #323130;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardBody {
+  padding: 18px;
+}
+
+.cardSubtitle {
+  font-size: 0.75rem;
+  color: #605e5c;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* ─── Chat Panel ────────────────────────────────────────────────────────── */
+.chatTabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #edebe9;
+  padding: 0 18px;
+}
+
+.chatTab {
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #605e5c;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chatTab:hover {
+  color: #323130;
+}
+
+.chatTabActive {
+  color: #0078d4;
+  border-bottom-color: #0078d4;
+}
+
+.chatBody {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ─── User message ──────────────────────────────────────────────────────── */
+.userMessage {
+  background: #f3f2f1;
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.userAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #edebe9;
+  color: #605e5c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.userText {
+  font-size: 0.9375rem;
+  color: #323130;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─── Bot message ───────────────────────────────────────────────────────── */
+.botMessage {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.botAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0078d4;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.botContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.botHeader {
+  font-size: 0.75rem;
+  color: #605e5c;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+/* ─── Thought process block ─────────────────────────────────────────────── */
+.thoughtBlock {
+  background: #faf9f8;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.thoughtTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0078d4;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.thoughtMeta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  font-size: 0.8125rem;
+  color: #323130;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+}
+
+.thoughtKey {
+  color: #605e5c;
+}
+
+/* ─── Supporting content ────────────────────────────────────────────────── */
+.supportingBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.supportingSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.supportingLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0078d4;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.supportingText {
+  font-size: 0.9375rem;
+  color: #323130;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.citation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: #0078d4;
+  background: rgba(0, 120, 212, 0.08);
+  border: 1px solid rgba(0, 120, 212, 0.25);
+  padding: 3px 10px;
+  border-radius: 4px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.citation:hover {
+  background: rgba(0, 120, 212, 0.15);
+}
+
+.excludeCategory {
+  background: #fff4ce;
+  border: 1px solid #fde58a;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  color: #8a6d00;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+}
+
+/* ─── JSON source block ─────────────────────────────────────────────────── */
+.jsonBlock {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0;
+}
+
+/* ─── Chart card ────────────────────────────────────────────────────────── */
+.chartCard {
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chartTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #323130;
+  margin: 0;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.75rem;
+  color: #605e5c;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* ─── Config Panel ──────────────────────────────────────────────────────── */
+.configBody {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.configSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.configLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #323130;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.configHelp {
+  font-size: 0.75rem;
+  color: #605e5c;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.promptTextarea {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #323130;
+  background: #faf9f8;
+  border: 1px solid #edebe9;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.promptTextarea:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+
+/* ─── Toggle / Checkbox / Radio ─────────────────────────────────────────── */
+.checkRow,
+.radioRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: #323130;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.checkRow input,
+.radioRow input {
+  margin: 2px 0 0 0;
+  accent-color: #0078d4;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.checkRow input[disabled],
+.radioRow input[disabled] {
+  opacity: 0.5;
+}
+
+.checkText,
+.radioText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.4;
+}
+
+.checkTextMuted {
+  font-size: 0.75rem;
+  color: #605e5c;
+}
+
+.subGroup {
+  margin-left: 22px;
+  padding-left: 12px;
+  border-left: 2px solid #edebe9;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ─── Bottom input bar ──────────────────────────────────────────────────── */
+.bottomBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid #edebe9;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.bottomInput {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #c8c6c4;
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 0.9375rem;
+  color: #323130;
+  font-family: inherit;
+}
+
+.bottomInput:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+
+.closeBtn {
+  background: #ffffff;
+  border: 1px solid #c8c6c4;
+  color: #323130;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.closeBtn:hover {
+  background: #f3f2f1;
+}
+
+/* ─── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 16px;
+  }
+
+  .headerTitle {
+    font-size: 0.9375rem;
+  }
+
+  .body {
+    padding: 12px 14px 100px;
+  }
+
+  .configBody {
+    max-height: none;
+  }
+
+  .bottomBar {
+    padding: 10px 14px;
+  }
+}
