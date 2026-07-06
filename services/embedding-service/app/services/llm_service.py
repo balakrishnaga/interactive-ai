@@ -1,8 +1,12 @@
+import logging
 import os
+
 from dotenv import load_dotenv
 from huggingface_hub import AsyncInferenceClient  # type: ignore
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 class LLMService:
@@ -11,23 +15,30 @@ class LLMService:
         self.api_key = os.getenv("HF_API_KEY")
 
         if not self.api_key:
-            print("Warning: HF_API_KEY is not set.")
+            logger.warning("HF_API_KEY is not set")
 
         self.client = AsyncInferenceClient(
             model=self.model_id,
             token=self.api_key,
         )
+        logger.info("LLM client created (model=%s)", self.model_id)
 
     async def chat(self, messages):
         """
         Processes a list of messages and returns the assistant's response.
         Messages is a list of dicts with 'role' and 'content'.
         """
-        completion = await self.client.chat.completions.create(
-            messages=messages,
-            max_tokens=512,
-            temperature=0.7,
-        )
+        logger.info("chat called")
+        logger.debug("chat message_count=%d", len(messages))
+        try:
+            completion = await self.client.chat.completions.create(
+                messages=messages,
+                max_tokens=512,
+                temperature=0.7,
+            )
+        except Exception as e:
+            logger.error("chat completion failed: %s", e)
+            raise
         return completion.choices[0].message.content
 
 

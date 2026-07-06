@@ -1,7 +1,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 
-from sentence_transformers import CrossEncoder # type: ignore
+from sentence_transformers import CrossEncoder  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +10,10 @@ class RerankerService:
     def __init__(self, model_name: str = "BAAI/bge-reranker-base"):
         self.model_name = model_name
         self.model: Optional[CrossEncoder] = None
+        logger.info(
+            "RerankerService initialized (model=%s, lazy_load=True)",
+            model_name,
+        )
 
     def _ensure_model(self) -> bool:
         """Lazily load the CrossEncoder model on first use.
@@ -18,6 +22,7 @@ class RerankerService:
         """
         if self.model is not None:
             return True
+        logger.info("Loading reranker model: %s", self.model_name)
         try:
             self.model = CrossEncoder(self.model_name)
         except Exception as e:
@@ -31,6 +36,8 @@ class RerankerService:
     def rerank(
         self, query: str, chunks: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
+        logger.info("rerank called")
+        logger.debug("rerank chunks=%d", len(chunks))
         if not chunks:
             return chunks
         if any("text" not in chunk for chunk in chunks):
@@ -49,7 +56,11 @@ class RerankerService:
             {**chunk, "rerank_score": float(score)}
             for chunk, score in zip(chunks, scores)
         ]
-        return sorted(scored, key=lambda x: x["rerank_score"], reverse=True)
+        sorted_chunks = sorted(
+            scored, key=lambda x: x["rerank_score"], reverse=True
+        )
+        logger.info("rerank returning %d sorted chunks", len(sorted_chunks))
+        return sorted_chunks
 
 
 reranker_service = RerankerService()

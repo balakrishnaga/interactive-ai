@@ -1,7 +1,10 @@
 import asyncio
 import json
+import logging
 import re
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 try:
     from rouge_score import rouge_scorer as _rouge_scorer
@@ -28,27 +31,52 @@ class EvaluatorService:
 
     _TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
 
+    def __init__(self) -> None:
+        logger.info("EvaluatorService initialized")
+
     def _tokenize(self, text: str) -> set:
+        logger.debug("_tokenize entry text_len=%d", len(text) if text else 0)
         if not text:
-            return set()
-        return set(self._TOKEN_RE.findall(text.lower()))
+            result = set()
+            logger.debug("_tokenize exit size=0")
+            return result
+        result = set(self._TOKEN_RE.findall(text.lower()))
+        logger.debug("_tokenize exit size=%d", len(result))
+        return result
 
     def compute_recall(self, query: str, chunks: List[Dict[str, Any]]) -> float:
         """Fraction of query terms/concepts covered by retrieved chunks."""
+        logger.info("compute_recall called")
+        logger.debug(
+            "compute_recall query_len=%d chunks=%d",
+            len(query) if query else 0,
+            len(chunks or []),
+        )
         query_terms = self._tokenize(query)
         if not query_terms:
+            logger.debug("compute_recall output=0.0 reason=no_query_terms")
             return 0.0
         chunk_terms = set()
         for chunk in chunks or []:
             chunk_terms.update(self._tokenize(chunk.get("text", "")))
         if not chunk_terms:
+            logger.debug("compute_recall output=0.0 reason=no_chunk_terms")
             return 0.0
         matched = query_terms & chunk_terms
-        return len(matched) / len(query_terms)
+        result = len(matched) / len(query_terms)
+        logger.debug("compute_recall output=%.4f", result)
+        return result
 
     def compute_precision(self, query: str, chunks: List[Dict[str, Any]]) -> float:
         """Average relevance score of retrieved chunks."""
+        logger.info("compute_precision called")
+        logger.debug(
+            "compute_precision query_len=%d chunks=%d",
+            len(query) if query else 0,
+            len(chunks or []),
+        )
         if not chunks:
+            logger.debug("compute_precision output=0.0 reason=no_chunks")
             return 0.0
         scores = []
         for chunk in chunks:
@@ -57,17 +85,28 @@ class EvaluatorService:
             elif "vector_score" in chunk:
                 scores.append(float(chunk["vector_score"]))
         if not scores:
+            logger.debug("compute_precision output=0.0 reason=no_scores")
             return 0.0
-        return sum(scores) / len(scores)
+        result = sum(scores) / len(scores)
+        logger.debug("compute_precision output=%.4f", result)
+        return result
 
     def compute_context_relevancy(
         self, query: str, chunks: List[Dict[str, Any]]
     ) -> float:
         """Average fraction of query terms found in each chunk (token-overlap proxy)."""
+        logger.info("compute_context_relevancy called")
+        logger.debug(
+            "compute_context_relevancy query_len=%d chunks=%d",
+            len(query) if query else 0,
+            len(chunks or []),
+        )
         query_terms = self._tokenize(query)
         if not query_terms:
+            logger.debug("compute_context_relevancy output=0.0 reason=no_query_terms")
             return 0.0
         if not chunks:
+            logger.debug("compute_context_relevancy output=0.0 reason=no_chunks")
             return 0.0
         per_chunk_scores: List[float] = []
         for chunk in chunks:
@@ -77,18 +116,27 @@ class EvaluatorService:
                 continue
             matched = query_terms & chunk_terms
             per_chunk_scores.append(len(matched) / len(query_terms))
-        return sum(per_chunk_scores) / len(per_chunk_scores)
+        result = sum(per_chunk_scores) / len(per_chunk_scores)
+        logger.debug("compute_context_relevancy output=%.4f", result)
+        return result
 
     @staticmethod
     def compute_hit_rate(chunks: List[Dict[str, Any]]) -> float:
         """1.0 if any chunks were retrieved, else 0.0."""
-        return 1.0 if chunks else 0.0
+        logger.info("compute_hit_rate called")
+        logger.debug("compute_hit_rate chunks=%d", len(chunks or []))
+        result = 1.0 if chunks else 0.0
+        logger.debug("compute_hit_rate output=%.4f", result)
+        return result
 
     @staticmethod
     def _extract_json_object(text: str) -> str:
         """Pull the first balanced JSON object from a possibly noisy LLM response."""
+        logger.debug("_extract_json_object entry text_len=%d", len(text) if text else 0)
+        result = ""
         if text is None:
-            return ""
+            logger.debug("_extract_json_object exit len=0")
+            return result
         s = text.strip()
         # Strip markdown code fences, then brace-balance to find the first
         # complete JSON object (handles `}` inside string values).
@@ -98,7 +146,9 @@ class EvaluatorService:
         # while respecting JSON string literals and escape sequences.
         start = candidate.find("{")
         if start == -1:
-            return candidate
+            result = candidate
+            logger.debug("_extract_json_object exit len=%d", len(result))
+            return result
         depth = 0
         in_string = False
         escape = False
@@ -119,16 +169,24 @@ class EvaluatorService:
                 elif ch == "}":
                     depth -= 1
                     if depth == 0:
-                        return candidate[start:i + 1]
-        return candidate[start:]
+                        result = candidate[start:i + 1]
+                        logger.debug("_extract_json_object exit len=%d", len(result))
+                        return result
+        result = candidate[start:]
+        logger.debug("_extract_json_object exit len=%d", len(result))
+        return result
 
     async def _parse_json_response(self, text: str) -> Dict[str, Any]:
         """Try json.loads first, then fall back to regex extraction."""
+        logger.debug("_parse_json_response entry text_len=%d", len(text) if text else 0)
         if text is None:
+            logger.debug("_parse_json_response exit keys=0")
             return {}
         raw = self._extract_json_object(text)
         try:
-            return json.loads(raw)
+            parsed = json.loads(raw)
+            logger.debug("_parse_json_response exit keys=%d", len(parsed))
+            return parsed
         except (json.JSONDecodeError, ValueError):
             pass
 
@@ -146,18 +204,23 @@ class EvaluatorService:
             result["unsupported"] = int(unsupported_match.group(1))
         if contradiction_match:
             result["contradiction"] = contradiction_match.group(1).lower() == "true"
+        logger.debug("_parse_json_response exit keys=%d", len(result))
         return result
 
     async def _parse_score_response(self, text: str) -> int:
         """Parse a `{"score": <int>}` response and return the int (0-10), else 0."""
+        logger.debug("_parse_score_response entry text_len=%d", len(text) if text else 0)
         if text is None:
+            logger.debug("_parse_score_response exit score=0")
             return 0
         raw = self._extract_json_object(text)
         try:
             data = json.loads(raw)
             score = data.get("score")
             if score is not None:
-                return max(0, min(10, int(score)))
+                final = max(0, min(10, int(score)))
+                logger.debug("_parse_score_response exit score=%d", final)
+                return final
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
@@ -172,15 +235,21 @@ class EvaluatorService:
             match = re.search(pattern, text)
             if match:
                 try:
-                    return max(0, min(10, int(match.group(1))))
+                    final = max(0, min(10, int(match.group(1))))
+                    logger.debug("_parse_score_response exit score=%d", final)
+                    return final
                 except (TypeError, ValueError):
                     continue
+        logger.debug("_parse_score_response exit score=0")
         return 0
 
     @staticmethod
     def _build_context(chunks: List[Dict[str, Any]]) -> str:
         """Join retrieved chunk texts with a '---' separator for LLM prompts."""
-        return "\n---\n".join(chunk.get("text", "") for chunk in (chunks or []))
+        logger.debug("_build_context entry chunks=%d", len(chunks or []))
+        result = "\n---\n".join(chunk.get("text", "") for chunk in (chunks or []))
+        logger.debug("_build_context exit context_len=%d", len(result))
+        return result
 
     async def compute_groundedness(
         self,
@@ -190,6 +259,13 @@ class EvaluatorService:
         llm: Any,
     ) -> float:
         """Fraction of response claims supported by chunks (LLM judge)."""
+        logger.info("compute_groundedness called")
+        logger.debug(
+            "compute_groundedness query_len=%d response_len=%d chunks=%d",
+            len(query) if query else 0,
+            len(response) if response else 0,
+            len(chunks or []),
+        )
         context = self._build_context(chunks)
         prompt = (
             "You are evaluating whether the claims in an assistant response "
@@ -207,14 +283,18 @@ class EvaluatorService:
             raw = await llm.chat([{"role": "user", "content": prompt}])
             data = await self._parse_json_response(raw)
         except Exception:
+            logger.warning("compute_groundedness LLM call failed", exc_info=True)
             return 0.0
 
         supported = int(data.get("supported", 0) or 0)
         unsupported = int(data.get("unsupported", 0) or 0)
         total = supported + unsupported
         if total == 0:
+            logger.debug("compute_groundedness output=0.0 reason=no_claims")
             return 0.0
-        return supported / total
+        result = supported / total
+        logger.debug("compute_groundedness output=%.4f", result)
+        return result
 
     async def compute_faithfulness(
         self,
@@ -224,6 +304,13 @@ class EvaluatorService:
         llm: Any,
     ) -> float:
         """1 if response does not contradict chunks, 0 if it does (LLM judge)."""
+        logger.info("compute_faithfulness called")
+        logger.debug(
+            "compute_faithfulness query_len=%d response_len=%d chunks=%d",
+            len(query) if query else 0,
+            len(response) if response else 0,
+            len(chunks or []),
+        )
         context = self._build_context(chunks)
         prompt = (
             "You are evaluating whether an assistant response contradicts the "
@@ -241,6 +328,7 @@ class EvaluatorService:
             raw = await llm.chat([{"role": "user", "content": prompt}])
             data = await self._parse_json_response(raw)
         except Exception:
+            logger.warning("compute_faithfulness LLM call failed", exc_info=True)
             return 0.0
 
         contradiction = data.get("contradiction")
@@ -260,8 +348,11 @@ class EvaluatorService:
             ):
                 contradiction = False
             else:
+                logger.debug("compute_faithfulness output=0.0 reason=no_contradiction_field")
                 return 0.0
-        return 0.0 if contradiction else 1.0
+        result = 0.0 if contradiction else 1.0
+        logger.debug("compute_faithfulness output=%.4f", result)
+        return result
 
     async def compute_answer_relevancy(
         self,
@@ -270,6 +361,12 @@ class EvaluatorService:
         llm: Any,
     ) -> float:
         """LLM-as-judge: how relevant the response is to the query (0-1)."""
+        logger.info("compute_answer_relevancy called")
+        logger.debug(
+            "compute_answer_relevancy query_len=%d response_len=%d",
+            len(query) if query else 0,
+            len(response) if response else 0,
+        )
         prompt = (
             "You are evaluating how relevant an assistant response is to a "
             "user query. A response is relevant if it addresses the query, "
@@ -285,8 +382,11 @@ class EvaluatorService:
             raw = await llm.chat([{"role": "user", "content": prompt}])
             score = await self._parse_score_response(raw)
         except Exception:
+            logger.warning("compute_answer_relevancy LLM call failed", exc_info=True)
             return 0.0
-        return score / 10.0
+        result = score / 10.0
+        logger.debug("compute_answer_relevancy output=%.4f", result)
+        return result
 
     def compute_mrr(
         self,
@@ -298,13 +398,23 @@ class EvaluatorService:
         A chunk is considered relevant if its tokens intersect with the query
         tokens. Returns 1/rank of the first relevant chunk, or 0.0 if none.
         """
+        logger.info("compute_mrr called")
+        logger.debug(
+            "compute_mrr query_len=%d chunks=%d",
+            len(query) if query else 0,
+            len(chunks or []),
+        )
         query_terms = self._tokenize(query)
         if not query_terms:
+            logger.debug("compute_mrr output=0.0 reason=no_query_terms")
             return 0.0
         for index, chunk in enumerate(chunks or [], start=1):
             chunk_terms = self._tokenize(chunk.get("text", ""))
             if query_terms & chunk_terms:
-                return 1.0 / index
+                result = 1.0 / index
+                logger.debug("compute_mrr output=%.4f rank=%d", result, index)
+                return result
+        logger.debug("compute_mrr output=0.0 reason=no_relevant_chunk")
         return 0.0
 
     async def compute_answer_correctness(
@@ -315,7 +425,15 @@ class EvaluatorService:
         llm: Any,
     ) -> float:
         """LLM-as-judge correctness vs reference answer (0-1)."""
+        logger.info("compute_answer_correctness called")
+        logger.debug(
+            "compute_answer_correctness query_len=%d response_len=%d has_reference=%s",
+            len(query) if query else 0,
+            len(response) if response else 0,
+            bool(reference_answer),
+        )
         if not reference_answer:
+            logger.debug("compute_answer_correctness output=0.0 reason=no_reference")
             return 0.0
         prompt = (
             "You are evaluating whether an assistant response correctly answers "
@@ -333,8 +451,11 @@ class EvaluatorService:
             raw = await llm.chat([{"role": "user", "content": prompt}])
             score = await self._parse_score_response(raw)
         except Exception:
+            logger.warning("compute_answer_correctness LLM call failed", exc_info=True)
             return 0.0
-        return score / 10.0
+        result = score / 10.0
+        logger.debug("compute_answer_correctness output=%.4f", result)
+        return result
 
     def compute_rouge_scores(
         self,
@@ -343,21 +464,35 @@ class EvaluatorService:
     ) -> Dict[str, float]:
         """Compute ROUGE-1/2/L F-measure vs reference answer."""
         empty = {"rouge_1": 0.0, "rouge_2": 0.0, "rouge_l": 0.0}
+        logger.info("compute_rouge_scores called")
+        logger.debug(
+            "compute_rouge_scores has_reference=%s", bool(reference_answer)
+        )
         if not reference_answer:
+            logger.debug("compute_rouge_scores output=zeros reason=no_reference")
             return empty
         if _rouge_scorer is None:
+            logger.debug("compute_rouge_scores output=zeros reason=library_missing")
             return empty
         try:
             scorer = _rouge_scorer.RougeScorer(
                 ["rouge1", "rouge2", "rougeL"], use_stemmer=True
             )
             scores = scorer.score(reference_answer, response or "")
-            return {
+            result = {
                 "rouge_1": float(scores["rouge1"].fmeasure),
                 "rouge_2": float(scores["rouge2"].fmeasure),
                 "rouge_l": float(scores["rougeL"].fmeasure),
             }
+            logger.debug(
+                "compute_rouge_scores output rouge_1=%.4f rouge_2=%.4f rouge_l=%.4f",
+                result["rouge_1"],
+                result["rouge_2"],
+                result["rouge_l"],
+            )
+            return result
         except Exception:
+            logger.warning("compute_rouge_scores failed", exc_info=True)
             return empty
 
     def compute_bleu(
@@ -366,24 +501,34 @@ class EvaluatorService:
         reference_answer: Optional[str],
     ) -> float:
         """Compute sentence-level BLEU vs reference answer."""
+        logger.info("compute_bleu called")
+        logger.debug(
+            "compute_bleu has_reference=%s", bool(reference_answer)
+        )
         if not reference_answer:
+            logger.debug("compute_bleu output=0.0 reason=no_reference")
             return 0.0
         if _sentence_bleu is None or _SmoothingFunction is None:
+            logger.debug("compute_bleu output=0.0 reason=library_missing")
             return 0.0
         try:
             reference_tokens = self._TOKEN_RE.findall(reference_answer.lower())
             response_tokens = self._TOKEN_RE.findall((response or "").lower())
             if not reference_tokens or not response_tokens:
+                logger.debug("compute_bleu output=0.0 reason=empty_tokens")
                 return 0.0
             smoothing = _SmoothingFunction().method1
-            return float(
+            result = float(
                 _sentence_bleu(
                     [reference_tokens],
                     response_tokens,
                     smoothing_function=smoothing,
-                )
+                )  # type: ignore
             )
+            logger.debug("compute_bleu output=%.4f", result)
+            return result
         except Exception:
+            logger.warning("compute_bleu failed", exc_info=True)
             return 0.0
 
     def compute_bertscore(
@@ -392,9 +537,15 @@ class EvaluatorService:
         reference_answer: Optional[str],
     ) -> float:
         """Compute BERTScore F1 vs reference answer; fallback to 0.0 on error."""
+        logger.info("compute_bertscore called")
+        logger.debug(
+            "compute_bertscore has_reference=%s", bool(reference_answer)
+        )
         if not reference_answer:
+            logger.debug("compute_bertscore output=0.0 reason=no_reference")
             return 0.0
         if _bert_score is None:
+            logger.debug("compute_bertscore output=0.0 reason=library_missing")
             return 0.0
         try:
             _, _, f1 = _bert_score.score(
@@ -403,13 +554,19 @@ class EvaluatorService:
                 lang="en",
                 verbose=False,
             )
-            return float(f1[0])
+            result = float(f1[0])
+            logger.debug("compute_bertscore output=%.4f", result)
+            return result
         except Exception:
+            logger.warning("compute_bertscore failed", exc_info=True)
             return 0.0
 
     @staticmethod
     def compute_hallucination_rate(groundedness: float) -> float:
         """Return 1 - groundedness."""
+        logger.debug(
+            "compute_hallucination_rate groundedness=%.4f", groundedness
+        )
         return 1.0 - groundedness
 
     async def compute_response_coherence(
@@ -419,6 +576,12 @@ class EvaluatorService:
         llm: Any,
     ) -> float:
         """LLM-as-judge coherence/readability score (0-1)."""
+        logger.info("compute_response_coherence called")
+        logger.debug(
+            "compute_response_coherence query_len=%d response_len=%d",
+            len(query) if query else 0,
+            len(response) if response else 0,
+        )
         prompt = (
             "You are evaluating the coherence and readability of an assistant "
             "response.\n\n"
@@ -434,8 +597,13 @@ class EvaluatorService:
             raw = await llm.chat([{"role": "user", "content": prompt}])
             score = await self._parse_score_response(raw)
         except Exception:
+            logger.warning(
+                "compute_response_coherence LLM call failed", exc_info=True
+            )
             return 0.0
-        return score / 10.0
+        result = score / 10.0
+        logger.debug("compute_response_coherence output=%.4f", result)
+        return result
 
     async def evaluate(
         self,
@@ -446,6 +614,14 @@ class EvaluatorService:
         reference_answer: Optional[str] = None,
     ) -> Dict[str, float]:
         """Returns dict with retriever, generator, and end-to-end metric keys."""
+        logger.info("evaluate called")
+        logger.debug(
+            "evaluate query_len=%d response_len=%d chunks=%d has_reference=%s",
+            len(query) if query else 0,
+            len(response) if response else 0,
+            len(chunks or []),
+            bool(reference_answer),
+        )
         # 1. Synchronous retriever metrics.
         context_precision = self.compute_precision(query, chunks)
         context_recall = self.compute_recall(query, chunks)
@@ -479,7 +655,7 @@ class EvaluatorService:
             self.compute_response_coherence(query, response, llm),
         )
 
-        return {
+        result = {
             # retriever metrics
             "context_precision": context_precision,
             "context_recall": context_recall,
@@ -504,6 +680,25 @@ class EvaluatorService:
             "recall": context_recall,
             "precision": context_precision,
         }
+        logger.info(
+            "evaluate completed metrics: recall=%.4f precision=%.4f groundedness=%.4f"
+            " faithfulness=%.4f answer_relevancy=%.4f answer_correctness=%.4f"
+            " rouge_l=%.4f bleu=%.4f bertscore=%.4f response_coherence=%.4f"
+            " hallucination_rate=%.4f hit_rate=%.4f",
+            result["recall"],
+            result["precision"],
+            result["groundedness"],
+            result["faithfulness"],
+            result["answer_relevancy"],
+            result["answer_correctness"],
+            result["rouge_l"],
+            result["bleu"],
+            result["bertscore"],
+            result["response_coherence"],
+            result["hallucination_rate"],
+            result["hit_rate"],
+        )
+        return result
 
 
 evaluator_service = EvaluatorService()

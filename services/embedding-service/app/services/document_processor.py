@@ -1,7 +1,12 @@
+import logging
 import os
 import tempfile
-from langchain_community.document_loaders import PyPDFLoader # type: ignore
+
+from langchain_community.document_loaders import PyPDFLoader  # type: ignore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+logger = logging.getLogger(__name__)
+
 
 class DocumentProcessor:
     def __init__(self, chunk_size=1000, chunk_overlap=200):
@@ -12,11 +17,18 @@ class DocumentProcessor:
             separators=["\n\n", "\n", " ", ""]  # Try to split on paragraphs first, then lines, etc.
             # is_separator_regex=False,
         )
+        logger.info(
+            "DocumentProcessor initialized (chunk_size=%d, chunk_overlap=%d)",
+            chunk_size,
+            chunk_overlap,
+        )
 
     def process_pdf(self, file_bytes: bytes, filename: str):
         """
         Processes a PDF from bytes, splits it into chunks, and returns them with metadata.
         """
+        logger.info("process_pdf called")
+        logger.debug("process_pdf filename=%s", filename)
         # Save bytes to a temporary file since PyPDFLoader expects a file path
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             temp_file.write(file_bytes)
@@ -41,12 +53,19 @@ class DocumentProcessor:
                         "chunkIndex": i
                     }
                 })
-            
+
+            logger.info("process_pdf produced %d chunks", len(processed_chunks))
             return processed_chunks
+
+        except Exception as e:
+            logger.warning("process_pdf failed for %s: %s", filename, e)
+            raise
 
         finally:
             # Clean up temp file
             if os.path.exists(temp_path):
                 os.remove(temp_path)
+                logger.debug("process_pdf cleaned up temp file %s", temp_path)
+
 
 document_processor = DocumentProcessor()
