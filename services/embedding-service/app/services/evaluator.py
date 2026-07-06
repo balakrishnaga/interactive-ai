@@ -156,19 +156,25 @@ class EvaluatorService:
         try:
             data = json.loads(raw)
             score = data.get("score")
-            if score is None:
-                return 0
-            return max(0, min(10, int(score)))
+            if score is not None:
+                return max(0, min(10, int(score)))
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
         # Fallback: regex on the raw text
-        match = re.search(r'"score"\s*:\s*(-?\d+)', text)
-        if match:
-            try:
-                return max(0, min(10, int(match.group(1))))
-            except (TypeError, ValueError):
-                return 0
+        patterns = [
+            r'"score"\s*:\s*(-?\d+)',
+            r'(?i)\bscore\s*[:=]?\s*(\d+)',
+            r'\b(\d{1,2})\s*/\s*10\b',
+            r'(?i)\b(\d{1,2})\s*out of\s*10\b',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                try:
+                    return max(0, min(10, int(match.group(1))))
+                except (TypeError, ValueError):
+                    continue
         return 0
 
     @staticmethod
@@ -272,8 +278,8 @@ class EvaluatorService:
             f"Response: {response}\n\n"
             "Score the relevancy from 0 to 10 where 0 means completely "
             "irrelevant (off-topic) and 10 means fully addresses the query. "
-            "Return ONLY a JSON object with a single integer field 'score'.\n"
-            "Example: {\"score\": 7}"
+            "Return ONLY a JSON object with a single integer field 'score'. "
+            "Do not include any other text. Example: {\"score\": 7}"
         )
         try:
             raw = await llm.chat([{"role": "user", "content": prompt}])

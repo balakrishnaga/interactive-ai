@@ -1,6 +1,6 @@
 import os
 import tempfile
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader # type: ignore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 class DocumentProcessor:

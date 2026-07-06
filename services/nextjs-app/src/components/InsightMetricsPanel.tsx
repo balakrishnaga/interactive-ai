@@ -8,39 +8,12 @@ interface Props {
   observability: ObservabilityTrace | null;
 }
 
-const METRIC_SECTIONS = [
-  {
-    id: "retriever",
-    title: "Retriever Metrics",
-    keys: ["context_precision", "context_recall", "context_relevancy", "hit_rate", "mrr", "ndcg"]
-  },
-  {
-    id: "generator",
-    title: "Generator Metrics",
-    keys: ["answer_relevancy", "answer_correctness", "bleu", "rouge", "bertscore"]
-  },
-  {
-    id: "end_to_end",
-    title: "End-to-End Metrics",
-    keys: ["faithfulness", "contextual_relevancy", "answer_relevancy"]
-  }
+const TARGET_METRICS = [
+  { key: "context_precision", label: "Context Precision" },
+  { key: "context_recall", label: "Context Recall" },
+  { key: "context_relevancy", label: "Context Relevancy" },
+  { key: "answer_relevancy", label: "Answer Relevancy" },
 ];
-
-const METRIC_LABELS: Record<string, string> = {
-  context_precision: "Context Precision",
-  context_recall: "Context Recall",
-  context_relevancy: "Context Relevancy",
-  hit_rate: "Hit Rate",
-  mrr: "MRR",
-  ndcg: "NDCG",
-  answer_relevancy: "Answer Relevancy",
-  answer_correctness: "Answer Correctness",
-  bleu: "BLEU",
-  rouge: "ROUGE",
-  bertscore: "BERTScore",
-  faithfulness: "Faithfulness",
-  contextual_relevancy: "Contextual Relevancy",
-};
 
 export default function InsightMetricsPanel({ observability }: Props) {
   if (!observability || !observability.metrics) {
@@ -59,6 +32,27 @@ export default function InsightMetricsPanel({ observability }: Props) {
   }
 
   const metrics = observability.metrics;
+  
+  const precision = metrics.context_precision;
+  const recall = metrics.context_recall;
+  
+  let f1Value = 0;
+  if (precision !== undefined && recall !== undefined) {
+    if (precision + recall > 0) {
+      f1Value = (2 * precision * recall) / (precision + recall);
+    }
+  }
+
+  const displayMetrics = [
+    ...TARGET_METRICS.map(m => ({
+      label: m.label,
+      value: metrics[m.key] !== undefined ? (metrics[m.key] * 100).toFixed(0) + '%' : '0%'
+    })),
+    {
+      label: "F1 Score",
+      value: (f1Value * 100).toFixed(0) + '%'
+    }
+  ];
 
   return (
     <div className={styles.card}>
@@ -66,28 +60,13 @@ export default function InsightMetricsPanel({ observability }: Props) {
         <h3 className={styles.cardTitle}>Evaluation Metrics</h3>
       </div>
       <div className={styles.cardBody}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {METRIC_SECTIONS.map((section) => {
-            const sectionMetrics = section.keys.filter(key => key in metrics);
-            
-            if (sectionMetrics.length === 0) return null;
-
-            return (
-              <div key={section.id}>
-                <div className={styles.cardSubtitle}>{section.title}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px', marginTop: '8px' }}>
-                  {sectionMetrics.map(key => (
-                    <div key={key} className={styles.metricCard}>
-                      <div className={styles.metricLabel}>{METRIC_LABELS[key] || key}</div>
-                      <div className={styles.metricValue}>
-                        {(metrics[key] * 100).toFixed(0)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+        <div className={styles.metricsGrid}>
+          {displayMetrics.map((metric, index) => (
+            <div key={index} className={styles.metricCard}>
+              <div className={styles.metricLabel}>{metric.label}</div>
+              <div className={styles.metricValue}>{metric.value}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -166,6 +166,12 @@
   letter-spacing: 0.05em;
 }
 
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
 .chunkCard {
   background: #faf9f8;
   border: 1px solid #edebe9;

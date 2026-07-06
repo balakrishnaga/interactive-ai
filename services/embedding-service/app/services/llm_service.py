@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEndpoint
+from langchain_huggingface import HuggingFaceEndpoint # type: ignore
 
 load_dotenv()
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
@@ -18,7 +18,7 @@ class LLMService:
             huggingfacehub_api_token=self.api_key,
             temperature=0.7,
             max_new_tokens=512,
-        )
+        ) # type: ignore
 
     async def chat(self, messages):
         """

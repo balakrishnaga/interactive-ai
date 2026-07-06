@@ -14,6 +14,8 @@ class FakeLLM:
             return '{"score": 8}'
         if "coherence" in text:
             return '{"score": 7}'
+        if "relevancy" in text.lower() or "relevant" in text.lower():
+            return '{"score": 9}'
         return '{"contradiction": false}'
 
 
@@ -47,7 +49,7 @@ async def test_evaluate():
     assert metrics["rouge_l"] == pytest.approx(0.8333333333333334, rel=1e-3)
     assert metrics["bleu"] == pytest.approx(0.25406637407730737, rel=1e-3)
     assert metrics["bertscore"] == pytest.approx(0.9906801581382751, rel=1e-2)
-    assert metrics["answer_relevancy"] == 0.0  # fallback contradiction response yields 0
+    assert metrics["answer_relevancy"] == pytest.approx(0.9, rel=1e-3)
     assert metrics["context_relevancy"] == pytest.approx(0.5, rel=1e-3)
     assert metrics["hit_rate"] == 1.0
 

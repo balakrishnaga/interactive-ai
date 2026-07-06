@@ -1,7 +1,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 
-from sentence_transformers import CrossEncoder
+from sentence_transformers import CrossEncoder # type: ignore
 
 logger = logging.getLogger(__name__)
 
