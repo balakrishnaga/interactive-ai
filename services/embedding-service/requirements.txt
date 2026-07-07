@@ -6,12 +6,11 @@ torch
 pytest
 pytest-asyncio
 httpx
-huggingface_hub>=0.26.0
+groq
 langchain
 langchain-community
 pypdf
 python-multipart
-langchain-huggingface
 python-dotenv
 pymongo
 rouge-score

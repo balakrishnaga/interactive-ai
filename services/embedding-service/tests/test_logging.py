@@ -71,18 +71,20 @@ def test_health_check_logs_info(caplog):
 
 
 def test_llm_service_warns_missing_api_key(monkeypatch, caplog):
-    """LLMService should log a WARNING when HF_API_KEY is not set."""
-    monkeypatch.delenv("HF_API_KEY", raising=False)
+    """LLMService should log a WARNING when GROQ_API_KEY is not set."""
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("GROQ_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
     caplog.set_level(logging.DEBUG)
 
-    LLMService()
+    with patch("app.services.llm_service.AsyncGroq"):
+        LLMService()
 
     warning_records = [
         r for r in caplog.records
-        if r.levelno == logging.WARNING and "HF_API_KEY" in r.getMessage()
+        if r.levelno == logging.WARNING and "GROQ_API_KEY" in r.getMessage()
     ]
     assert warning_records, (
-        "Expected a WARNING log mentioning HF_API_KEY; got: "
+        "Expected a WARNING log mentioning GROQ_API_KEY; got: "
         + repr([(r.levelname, r.getMessage()) for r in caplog.records])
     )
 
