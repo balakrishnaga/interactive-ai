@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class LLMService:
     def __init__(self):
-        self.model_id = os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile")
+        self.model_id = os.getenv("GROQ_EVAL_MODEL", "qwen/qwen3-32b")
         self.api_key = os.getenv("GROQ_API_KEY")
 
         if not self.api_key:
