@@ -111,10 +111,10 @@ export async function POST(req: Request) {
     }
 
     const augmentedMessages = messages.map((m: Message) => ({ ...m }));
-    if (context) {
-      augmentedMessages[augmentedMessages.length - 1].content =
-        `${DOCUMENT_SYSTEM_PROMPT}\n\nUse the following context to answer the user question if relevant. If the answer is not in the context, strictly say "I couldn't find information about that in the uploaded documents" and don't answer using general knowledge.\n\nContext: ${context}\n\nQuestion: ${lastMessage}`;
-    }
+    augmentedMessages[augmentedMessages.length - 1].content =
+      DOCUMENT_SYSTEM_PROMPT
+        .replace("{RETRIEVED_CHUNKS}", context)
+        .replace("{USER_QUESTION}", lastMessage);
 
     const llm = getLLM();
     const llmResponse = await llm.chat(augmentedMessages);

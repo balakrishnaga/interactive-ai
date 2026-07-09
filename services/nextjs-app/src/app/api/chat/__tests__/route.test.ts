@@ -54,6 +54,45 @@ describe("/api/chat", () => {
     expect(data.observability.reranked_chunks).toHaveLength(1);
     expect(data.observability.metrics).toEqual({ recall: 1, precision: 1, groundedness: 1, faithfulness: 1 });
     expect(mockChat).toHaveBeenCalledTimes(1);
+
+    const promptArg = (mockChat.mock.calls[0][0] as Array<{ content: string }>).slice(-1)[0].content;
+    expect(promptArg).toContain("hello");
+    expect(promptArg).toContain("x");
+    expect(promptArg).toContain("a.pdf");
+    expect(promptArg).toContain("Page 1");
+  });
+
+  it("substitutes user question with empty context when no chunks are retrieved", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        query: "anything",
+        top_k: 2,
+        reranker_used: true,
+        initial_chunks: [],
+        reranked_chunks: [],
+        metrics: null
+      })
+    });
+
+    const req = new Request("http://localhost/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ messages: [{ role: "user", content: "anything" }] })
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(data.response).toBe("Generated response");
+    expect(data.sources).toEqual([]);
+    expect(mockChat).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    const promptArg = (mockChat.mock.calls[0][0] as Array<{ content: string }>).slice(-1)[0].content;
+    expect(promptArg).toContain("anything");
+    expect(promptArg).toMatch(/<context>\s*<\/context>/);
+    expect(promptArg).not.toContain("{RETRIEVED_CHUNKS}");
+    expect(promptArg).not.toContain("{USER_QUESTION}");
   });
 
   it("returns REFUSAL_MESSAGE when retrieval fails and does not call the LLM", async () => {
