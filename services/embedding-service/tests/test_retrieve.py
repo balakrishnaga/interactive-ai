@@ -31,6 +31,8 @@ def test_retrieve_without_rerank(retriever):
     assert result["top_k"] == 1
     assert len(result["initial_chunks"]) == 1
     assert result["reranker_used"] is False
+    assert "guardrails" in result
+    assert "allowed" in result["guardrails"]
 
 
 def test_retrieve_empty_results(retriever):

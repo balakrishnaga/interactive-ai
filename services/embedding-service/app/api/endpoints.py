@@ -4,11 +4,13 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from app.schemas.text_input import TextInput, BatchInput, ChatInput
 from app.schemas.retrieve import RetrieveRequest, RetrieveResponse
 from app.schemas.evaluate import EvaluateRequest, EvaluateResponse
+from app.schemas.guardrails import GuardrailsCheckRequest, GuardrailResult, GuardrailsQueryRequest
 from app.services.embedding import embedding_service
 from app.services.document_processor import document_processor
 from app.services.evaluator import evaluator_service
 from app.services.llm_service import llm_service
 from app.services.retriever import retriever_service
+from app.services.guardrails import query_relevance_guardrail, response_guardrail
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,9 @@ def retrieve(input: RetrieveRequest):
         input.top_k,
         input.rerank,
     )
-    return retriever_service.retrieve(input.query, input.top_k, input.rerank)
+    result = retriever_service.retrieve(input.query, input.top_k, input.rerank)
+    
+    return result
 
 
 @router.post("/evaluate", response_model=EvaluateResponse)
@@ -98,3 +102,35 @@ async def evaluate(input: EvaluateRequest):
     )
     logger.info("Evaluate metrics computed")
     return EvaluateResponse(**metrics)
+
+
+@router.post("/guardrails/check", response_model=GuardrailResult)
+async def check_guardrails(input: GuardrailsCheckRequest):
+    logger.info("Guardrails check request received")
+    
+    chunks_dict = [chunk.model_dump() for chunk in input.chunks]
+    
+    if not input.chunks:
+        logger.debug("Performing query-only relevance check (no chunks provided)")
+        if not input.response:
+            return query_relevance_guardrail.check_without_chunks(input.query)
+        # If response is provided but chunks are empty, response guardrail will still be called,
+        # though it may fail groundedness.
+    
+    if not input.response:
+        logger.debug("Performing full query relevance check")
+        return query_relevance_guardrail.check(input.query, chunks_dict)
+    
+    logger.debug("Performing response guardrail check")
+    return await response_guardrail.check(
+        input.query, 
+        input.response, 
+        chunks_dict, 
+        llm_service
+    )
+
+
+@router.post("/guardrails/query", response_model=GuardrailResult)
+async def check_query_guardrails(input: GuardrailsQueryRequest):
+    logger.info("Query-only guardrails check request received")
+    return query_relevance_guardrail.check_without_chunks(input.query)

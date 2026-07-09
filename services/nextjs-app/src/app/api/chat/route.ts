@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLLM } from "@/lib/llm";
+import { REFUSAL_MESSAGE, RESPONSE_REFUSAL_MESSAGE, DOCUMENT_SYSTEM_PROMPT } from "@/lib/llm/prompts";
 import type { Message } from "@/lib/llm/types";
 import type { ObservabilityTrace, RetrievedChunk } from "@/lib/observability";
 
@@ -27,6 +28,19 @@ async function evaluate(query: string, response: string, chunks: RetrievedChunk[
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `evaluate failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function checkResponseGuardrails(query: string, response: string, chunks: RetrievedChunk[]) {
+  const res = await fetch(`${EMBEDDING_SERVICE_URL}/guardrails/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, response, chunks })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `checkResponseGuardrails failed: ${res.status}`);
   }
   return res.json();
 }
@@ -67,6 +81,15 @@ export async function POST(req: Request) {
       const retrieveResult = await retrieve(lastMessage, top_k, rerank);
       observability = retrieveResult;
       const chunks = retrieveResult.reranked_chunks;
+      const guardrails = retrieveResult.guardrails;
+
+      if (guardrails?.allowed === false) {
+        return NextResponse.json({
+          response: REFUSAL_MESSAGE,
+          sources: [],
+          observability: { ...observability, guardrails_blocked_reason: guardrails?.reason ?? null }
+        });
+      }
 
       if (chunks.length > 0) {
         context = "\n\nContext from uploaded documents:\n" +
@@ -80,25 +103,46 @@ export async function POST(req: Request) {
     } catch (vError) {
       console.error("Retrieve failed:", vError);
       observability.retrieval_error = vError instanceof Error ? vError.message : String(vError);
+      return NextResponse.json({
+        response: REFUSAL_MESSAGE,
+        sources: [],
+        observability
+      });
     }
 
     const augmentedMessages = messages.map((m: Message) => ({ ...m }));
     if (context) {
       augmentedMessages[augmentedMessages.length - 1].content =
-        `Use the following context to answer the user question if relevant. If the answer is not in the context, strictly say answer is not found in the context dont answer using general knowledge.\n\nContext: ${context}\n\nQuestion: ${lastMessage}`;
+        `${DOCUMENT_SYSTEM_PROMPT}\n\nUse the following context to answer the user question if relevant. If the answer is not in the context, strictly say "I couldn't find information about that in the uploaded documents" and don't answer using general knowledge.\n\nContext: ${context}\n\nQuestion: ${lastMessage}`;
     }
 
     const llm = getLLM();
     const llmResponse = await llm.chat(augmentedMessages);
-    const responseText = typeof llmResponse === "string" ? llmResponse : llmResponse.content;
+    let responseText = typeof llmResponse === "string" ? llmResponse : llmResponse.content;
+
+    // Lightweight output guardrail
+    const refusalPhrases = ["i don't know", "not in the context", "no information", "i have no information"];
+    const isRefusal = !responseText || responseText.trim().length === 0 || 
+                      refusalPhrases.some(phrase => responseText.toLowerCase().includes(phrase));
+    
+    if (isRefusal) {
+      responseText = RESPONSE_REFUSAL_MESSAGE;
+    }
 
     try {
       if (observability.reranked_chunks.length > 0) {
+        // Response Guardrail
+        const guardrailResult = await checkResponseGuardrails(lastMessage, responseText, observability.reranked_chunks);
+        if (guardrailResult.allowed === false) {
+          responseText = RESPONSE_REFUSAL_MESSAGE;
+          sources = [];
+        }
+
         const metrics = await evaluate(lastMessage, responseText, observability.reranked_chunks);
         observability.metrics = metrics;
       }
     } catch (e) {
-      console.error("Evaluate failed:", e);
+      console.error("Response evaluation failed:", e);
       observability.evaluation_error = e instanceof Error ? e.message : String(e);
     }
 

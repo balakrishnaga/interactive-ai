@@ -21,7 +21,7 @@ describe("InsightMetricsPanel", () => {
         context_relevancy: 0.7,
         answer_relevancy: 0.9,
       }
-    } as ObservabilityTrace;
+    } as unknown as ObservabilityTrace;
 
     render(<InsightMetricsPanel observability={mockObservability} />);
 
@@ -43,7 +43,7 @@ describe("InsightMetricsPanel", () => {
         context_relevancy: 0.7,
         answer_relevancy: 0.9,
       }
-    } as ObservabilityTrace;
+    } as unknown as ObservabilityTrace;
 
     render(<InsightMetricsPanel observability={mockObservability} />);
     
@@ -59,7 +59,7 @@ describe("InsightMetricsPanel", () => {
         context_relevancy: 0.7,
         answer_relevancy: 0.9,
       }
-    } as ObservabilityTrace;
+    } as unknown as ObservabilityTrace;
 
     render(<InsightMetricsPanel observability={mockObservability} />);
     
@@ -74,7 +74,7 @@ describe("InsightMetricsPanel", () => {
         context_relevancy: 0.7,
         answer_relevancy: 0.9,
       }
-    } as ObservabilityTrace;
+    } as unknown as ObservabilityTrace;
 
     render(<InsightMetricsPanel observability={mockObservability} />);
     

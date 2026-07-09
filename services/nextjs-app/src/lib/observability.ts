@@ -23,6 +23,11 @@ export interface ObservabilityTrace {
   metrics: ObservabilityMetrics | null;
   retrieval_error?: string;
   evaluation_error?: string;
+  guardrails?: {
+    allowed: boolean;
+    reason?: string | null;
+    scores?: any;
+  };
 }
 
 export interface RetrievePayload {
