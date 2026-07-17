@@ -18,6 +18,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
         }
 
+        if (file.size > 9 * 1024 * 1024) {
+            return NextResponse.json({ error: "File size exceeds the 9MB limit" }, { status: 400 });
+        }
+
         if (file.type !== 'application/pdf') {
             return NextResponse.json({ error: "Only PDF files are supported" }, { status: 400 });
         }

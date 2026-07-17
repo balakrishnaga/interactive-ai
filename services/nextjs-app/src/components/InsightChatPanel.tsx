@@ -73,6 +73,11 @@ export default function InsightChatPanel({ topK, enableRerank, onObservabilityCh
             return;
         }
 
+        if (file.size > 9 * 1024 * 1024) {
+            alert("File size exceeds the 9MB limit. Please upload a smaller PDF.");
+            return;
+        }
+
         setIsUploading(true);
         const formData = new FormData();
         formData.append('file', file);
