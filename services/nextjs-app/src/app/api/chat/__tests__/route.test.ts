@@ -156,6 +156,7 @@ describe("/api/chat", () => {
     expect(data.response).toBe(RESPONSE_REFUSAL_MESSAGE);
     expect(data.sources).toEqual([]);
     expect(data.observability.reranked_chunks).toHaveLength(1);
+    expect(data.observability.guardrails).toEqual({ allowed: false, reason: "Hallucinated" });
     expect(mockChat).toHaveBeenCalledTimes(1);
   });
 
@@ -196,6 +197,7 @@ describe("/api/chat", () => {
     expect(data.response).toBe("This is based on fact B.");
     expect(data.sources).toHaveLength(1);
     expect(data.sources[0].filename).toBe("b.pdf");
+    expect(data.observability.guardrails).toEqual({ allowed: true });
   });
 
   it("returns REFUSAL_MESSAGE when retrieve throws a network error", async () => {

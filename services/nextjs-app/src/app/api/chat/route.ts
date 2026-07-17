@@ -133,6 +133,8 @@ export async function POST(req: Request) {
       if (observability.reranked_chunks.length > 0) {
         // Response Guardrail
         const guardrailResult = await checkResponseGuardrails(lastMessage, responseText, observability.reranked_chunks);
+        observability.guardrails = guardrailResult;
+
         if (guardrailResult.allowed === false) {
           responseText = RESPONSE_REFUSAL_MESSAGE;
           sources = [];
